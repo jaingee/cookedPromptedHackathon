@@ -196,6 +196,12 @@ npm run demo:save       # Save report (delete generated file after)
 git diff --check        # Check for whitespace issues
 ```
 
+## Kiro usage note
+
+This V1 was built with Kiro using roughly 2,000 credits during an exploratory, highly verified build process. Most implementation passes used Auto mode, with Opus 4.8 used for heavier reasoning/planning passes and occasional GLM 5 / MiniMax 2.5 use.
+
+The credit usage could likely be optimized further. A more streamlined repeat build could probably fit closer to ~1,000 credits by batching similar implementation waves, reusing established patterns, reducing redundant planning loops, and keeping verification focused after the core architecture is stable.
+
 ## Project Docs / Where to Read Next
 
 | File | Purpose |
