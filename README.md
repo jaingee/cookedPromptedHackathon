@@ -6,6 +6,28 @@ A local-first AI prompt coaching tool that reviews your past prompts, identifies
 
 V1 is a completed local-first demo pipeline for privacy-safe prompt habit coaching.
 
+## The story
+
+### Problem
+
+People often blame the AI model when the real issue is their prompting habit: vague requests, missing context, weak constraints, unsafe sharing of sensitive data, or using an overpowered model for a simple task.
+
+Prompt logs can also contain private code, customer details, credentials, work context, or personal information, so analyzing them through a cloud-first workflow creates trust issues.
+
+### Approach
+
+cookedPrompts analyzes prompt logs locally after the fact. It imports JSONL/CSV prompt logs, strips full-answer fields, scores prompt quality, flags safety/privacy risks, recommends model capability classes, suggests rewrite templates, and renders a coaching report.
+
+### Result
+
+V1 is a completed local-first demo pipeline. A judge can run one command:
+
+```bash
+npm run demo
+```
+
+and see the full "20 Prompts Later: Your AI Habits Exposed" report generated from synthetic demo data.
+
 ## What cookedPrompts does
 
 cookedPrompts analyzes imported prompt logs after the fact and produces a coaching report. It scores prompts across 7 dimensions, flags safety risks, recommends model classes, suggests rewrite templates, and packages everything into a markdown "20 Prompts Later: Your AI Habits Exposed" report.
@@ -55,6 +77,35 @@ npm run demo:save
 # See all options
 npm run demo -- --help
 ```
+
+## How to judge this repo quickly
+
+1. Read the short problem/approach/result story above.
+2. Run the local demo:
+
+```bash
+npm install
+npm run demo
+```
+
+3. Save the report if desired:
+
+```bash
+npm run demo:save
+```
+
+4. Inspect the implementation path:
+   - `src/cli/demo-runner.ts`
+   - `src/integration-demo/`
+   - `src/demo-report/`
+   - `src/safety/`
+   - `src/model-recommendation/`
+   - `src/rewrite-template/`
+5. Inspect the Kiro spec evidence:
+   - `.kiro/steering/`
+   - `.kiro/specs/09-integration-demo-flow/`
+   - `.kiro/specs/10-demo-report-renderer/`
+   - `.kiro/specs/11-demo-runner-cli/`
 
 ## CLI Commands
 
@@ -196,11 +247,62 @@ npm run demo:save       # Save report (delete generated file after)
 git diff --check        # Check for whitespace issues
 ```
 
+## Kiro usage and spec-driven build evidence
+
+This project was built through a Kiro-style spec-driven workflow rather than a single ad-hoc coding pass.
+
+Kiro artifacts visible in this repo:
+
+| Kiro artifact | Where to inspect |
+|---|---|
+| Product steering | `.kiro/steering/product.md` |
+| Privacy and safety steering | `.kiro/steering/privacy-and-safety.md` |
+| Technical direction | `.kiro/steering/tech.md` |
+| Feature requirements/design/tasks | `.kiro/specs/*/requirements.md`, `.kiro/specs/*/design.md`, `.kiro/specs/*/tasks.md` |
+| Integration demo flow | `.kiro/specs/09-integration-demo-flow/` |
+| Demo report renderer | `.kiro/specs/10-demo-report-renderer/` |
+| Demo runner CLI | `.kiro/specs/11-demo-runner-cli/` |
+| Reusable Kiro workflow skill | `.kiro/skills/rtk-token-efficient-cli/` |
+
+Kiro was used for:
+
+- steering and scope control
+- requirements-first planning
+- design documents before implementation
+- task-wave breakdowns
+- privacy guardrails
+- test planning
+- implementation passes
+- verification and closeout discipline
+
+The shipped V1 follows the same pipeline described in the specs:
+
+```text
+import -> validate -> strip full answers -> normalize -> store -> score -> scan safety -> recommend model class -> suggest templates -> summarize -> render report -> run CLI
+```
+
 ## Kiro usage note
 
 This V1 was built with Kiro using roughly 2,000 credits during an exploratory, highly verified build process. Most implementation passes used Auto mode, with Opus 4.8 used for heavier reasoning/planning passes and occasional GLM 5 / MiniMax 2.5 use.
 
 The credit usage could likely be optimized further. A more streamlined repeat build could probably fit closer to ~1,000 credits by batching similar implementation waves, reusing established patterns, reducing redundant planning loops, and keeping verification focused after the core architecture is stable.
+
+## Demo video path
+
+A short demo video can show the project in this order:
+
+1. State the problem: prompt habits are hard to see, and prompt logs are sensitive.
+2. Run `npm run demo`.
+3. Show the generated "20 Prompts Later" report.
+4. Point out the report sections:
+   - prompt health
+   - issue patterns
+   - safety/privacy
+   - model recommendations
+   - rewrite/template coaching
+   - next actions
+5. Show `.kiro/specs/11-demo-runner-cli/` and `.kiro/specs/09-integration-demo-flow/` to demonstrate spec-to-code alignment.
+6. End with the roadmap: V1 is local-first; future versions can add hosted features only after privacy boundaries are proven.
 
 ## Project Docs / Where to Read Next
 
