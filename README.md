@@ -80,6 +80,14 @@ npm test
 git diff --check
 ```
 
+## Demo Status
+
+The current hackathon repo exposes the working local-first pipeline, demo dataset, scoring modules, safety scanner, model recommendation engine, rewrite/template guidance, dashboard data service, and demo report renderer.
+
+There is not yet a polished hosted web app. The V1 demo is intentionally local-first and test-backed: judges can inspect the modules, run the TypeScript checks, and run the full test suite to verify the pipeline behavior and privacy guarantees.
+
+A future polish pass can add a dedicated one-command demo runner that prints the "20 Prompts Later: Your AI Habits Exposed" report directly in the terminal.
+
 ## Privacy Guarantees
 
 - No cloud sync in V1.
@@ -90,6 +98,28 @@ git diff --check
 - Safety warnings do not return matched secret values.
 - V1 demo reports never include raw `prompt_text`, even when `include_prompt_text` is accepted for future API compatibility.
 - Demo data is synthetic and uses fake, non-actionable placeholders.
+
+## Public Repo Boundary
+
+This public hackathon repository intentionally excludes two internal project-memory files:
+
+- `HANDOFF.md`
+- `CHANGELOG.md`
+
+These files are used in the private working repo to track implementation state, planning history, verification notes, Kiro workflow context, and detailed development handoffs.
+
+They are excluded from this public repo because they may contain internal process notes, private project memory, overly detailed agent/session logs, or security-sensitive development context that is not necessary for judging the hackathon submission.
+
+The visible public repo still includes the important project artifacts:
+
+- source code
+- tests
+- public documentation
+- `.kiro/specs/`
+- `.kiro/steering/`
+- privacy and demo-data notes
+
+This keeps the submission reviewable while preserving a safer public boundary.
 
 ## Intentionally Out Of Scope For V1
 
