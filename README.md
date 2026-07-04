@@ -6,13 +6,24 @@ A local-first AI prompt coaching tool that reviews your past prompts, identifies
 
 V1 is a completed local-first demo pipeline for privacy-safe prompt habit coaching.
 
+## At a glance
+
+| Area | Summary |
+|---|---|
+| **Problem** | AI users often blame the model when the real issue is vague prompts, missing context, weak constraints, unsafe data sharing, or poor model choice. |
+| **Approach** | Analyze prompt logs locally, score prompt habits, flag privacy risks, recommend model capability classes, and suggest reusable templates. |
+| **Result** | A completed local-first V1 demo pipeline that generates the **"20 Prompts Later: Your AI Habits Exposed"** coaching report. |
+| **Demo command** | `npm run demo` |
+| **Privacy posture** | No cloud sync, no telemetry, no provider API calls, no external AI judge, no full model-answer storage. |
+| **Kiro evidence** | `.kiro/steering/` and `.kiro/specs/` show the spec-driven build process. |
+
 ## The story
 
 ### Problem
 
 People often blame the AI model when the real issue is their prompting habit: vague requests, missing context, weak constraints, unsafe sharing of sensitive data, or using an overpowered model for a simple task.
 
-Prompt logs can also contain private code, customer details, credentials, work context, or personal information, so analyzing them through a cloud-first workflow creates trust issues.
+Prompt logs can also contain private code, credentials, work context, personal information, or internal notes, so analyzing them through a cloud-first workflow creates trust issues.
 
 ### Approach
 
@@ -20,19 +31,39 @@ cookedPrompts analyzes prompt logs locally after the fact. It imports JSONL/CSV 
 
 ### Result
 
-V1 is a completed local-first demo pipeline. A judge can run one command:
+V1 is a completed local-first demo pipeline. A judge can run:
 
 ```bash
 npm run demo
 ```
 
-and see the full "20 Prompts Later: Your AI Habits Exposed" report generated from synthetic demo data.
+and see the full **"20 Prompts Later: Your AI Habits Exposed"** report generated from synthetic demo data.
 
 ## What cookedPrompts does
 
-cookedPrompts analyzes imported prompt logs after the fact and produces a coaching report. It scores prompts across 7 dimensions, flags safety risks, recommends model classes, suggests rewrite templates, and packages everything into a markdown "20 Prompts Later: Your AI Habits Exposed" report.
+cookedPrompts turns prompt logs into a local coaching report.
 
-No cloud. No login. No external AI judge. Just local rule-based analysis of your prompt habits.
+It helps users answer:
+
+- **What weak prompt habits do I repeat?**
+- **Where am I wasting model capability, tokens, or time?**
+- **Am I exposing sensitive information?**
+- **Which model capability class would have fit better?**
+- **What reusable template should I use next time?**
+
+V1 includes:
+
+- JSONL / CSV import
+- prompt validation and normalization
+- banned full-answer field stripping
+- local SQLite storage
+- scoring across seven prompt-quality dimensions
+- local safety/privacy scanning
+- local model capability recommendation
+- rewrite/template coaching
+- integration demo flow
+- Markdown report rendering
+- demo runner CLI
 
 ## Why V1 is local-first
 
@@ -106,6 +137,23 @@ npm run demo:save
    - `.kiro/specs/09-integration-demo-flow/`
    - `.kiro/specs/10-demo-report-renderer/`
    - `.kiro/specs/11-demo-runner-cli/`
+
+## What judges can verify
+
+| Claim | Where to verify |
+|---|---|
+| **Working local demo** | Run `npm run demo` |
+| **Saved report output** | Run `npm run demo:save` |
+| **CLI implementation** | `src/cli/demo-runner.ts` |
+| **End-to-end pipeline** | `src/integration-demo/` |
+| **Report renderer** | `src/demo-report/` |
+| **Safety scanner** | `src/safety/` |
+| **Model recommendation** | `src/model-recommendation/` |
+| **Rewrite/template coaching** | `src/rewrite-template/` |
+| **Spec-driven build evidence** | `.kiro/specs/` |
+| **Steering and guardrails** | `.kiro/steering/` |
+| **Privacy boundary** | `docs/security-and-privacy.md` |
+| **Synthetic demo data notes** | `docs/demo-data.md` |
 
 ## CLI Commands
 
@@ -270,10 +318,13 @@ Kiro was used for:
 - requirements-first planning
 - design documents before implementation
 - task-wave breakdowns
-- privacy guardrails
+- implementation planning
+- privacy guardrail planning
 - test planning
-- implementation passes
+- review and cleanup passes
 - verification and closeout discipline
+
+I did not rely heavily on Kiro hooks or advanced automation features in this version. The main value came from using Kiro as a structured spec-driven development environment: keeping requirements, designs, tasks, implementation passes, and verification aligned as the project grew.
 
 The shipped V1 follows the same pipeline described in the specs:
 
@@ -283,9 +334,19 @@ import -> validate -> strip full answers -> normalize -> store -> score -> scan 
 
 ## Kiro usage note
 
-This V1 was built with Kiro using roughly 2,000 credits during an exploratory, highly verified build process. Most implementation passes used Auto mode, with Opus 4.8 used for heavier reasoning/planning passes and occasional GLM 5 / MiniMax 2.5 use.
+This V1 was built with Kiro using **roughly 2,000 credits** during an exploratory, highly verified build process.
 
-The credit usage could likely be optimized further. A more streamlined repeat build could probably fit closer to ~1,000 credits by batching similar implementation waves, reusing established patterns, reducing redundant planning loops, and keeping verification focused after the core architecture is stable.
+Most implementation passes used **Auto mode**, with **Opus 4.8** used for heavier reasoning/planning passes and occasional **GLM 5** / **MiniMax 2.5** use.
+
+The credit usage could likely be optimized further. A more streamlined repeat build could probably fit closer to **around 1,000 credits** by:
+
+- batching similar implementation waves
+- reusing established architecture patterns
+- reducing redundant planning loops
+- avoiding repeated re-verification of stable modules
+- keeping verification focused once the core architecture is stable
+
+The higher credit usage was useful during exploration because the project was being shaped, tested, and privacy-hardened at the same time. For a repeat implementation, the same product could likely be built more efficiently.
 
 ## Demo video path
 
