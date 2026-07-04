@@ -22,6 +22,8 @@ import {
   ISSUE_LABEL_COACHING_NOTES,
   DIMENSION_COACHING_NOTES,
   GENERAL_ENCOURAGEMENT_ACTIONS,
+  humanizeDimension,
+  humanizeIssueLabel,
 } from './coaching-copy.js';
 
 /**
@@ -85,7 +87,7 @@ export function buildPromptHealth(summary: BatchSummary): ReportSection {
 
   const items = sorted.map(([dim, val]) => {
     const score = val !== null ? (Math.round(val * 100) / 100).toString() : 'N/A';
-    return `${dim}: ${score} / 5`;
+    return `${humanizeDimension(dim)}: ${score} / 5`;
   });
 
   // Coaching for weakest 1–2 dimensions (non-null, score < 3.5)
@@ -138,7 +140,7 @@ export function buildIssuePatterns(
     .slice(0, maxIssues);
 
   const items = sorted.map(
-    ([label, count]) => `${label} (×${count})`,
+    ([label, count]) => `${humanizeIssueLabel(label)} (×${count})`,
   );
 
   const coaching_notes = sorted
@@ -379,8 +381,8 @@ export function buildNextActions(
     actions.push({
       priority: priority++,
       action: note
-        ? `Fix "${label}" (appeared ${count}×): ${note}`
-        : `Address "${label}" issue (appeared ${count}×).`,
+        ? `Fix "${humanizeIssueLabel(label)}" (appeared ${count}×): ${note}`
+        : `Address "${humanizeIssueLabel(label)}" issue (appeared ${count}×).`,
       source: 'issue',
     });
   }
@@ -402,8 +404,8 @@ export function buildNextActions(
     actions.push({
       priority: priority++,
       action: note
-        ? `Improve "${dim}" dimension: ${note}`
-        : `Work on your "${dim}" scores.`,
+        ? `Improve ${humanizeDimension(dim)}: ${note}`
+        : `Work on your ${humanizeDimension(dim)} scores.`,
       source: 'dimension',
     });
   }
@@ -443,7 +445,10 @@ export function buildNextActions(
   const finalActions = actions.slice(0, maxActions);
 
   const items = finalActions.map(
-    (a) => `[${a.source}] ${a.action}`,
+    (a) => {
+      const prefix = formatActionSource(a.source);
+      return prefix ? `${prefix} ${a.action}` : a.action;
+    },
   );
 
   return {
@@ -454,6 +459,18 @@ export function buildNextActions(
   };
 }
 
+/** Map action source to a clean human-readable prefix. */
+function formatActionSource(source: string): string {
+  switch (source) {
+    case 'safety': return 'Safety:';
+    case 'issue': return 'Issue:';
+    case 'dimension': return 'Prompt health:';
+    case 'model': return 'Model fit:';
+    case 'encouragement': return '';
+    default: return '';
+  }
+}
+
 /**
  * 8. Limitations — static local-only note.
  */
@@ -462,10 +479,11 @@ export function buildLimitations(): ReportSection {
     kind: 'limitations',
     heading: 'Limitations',
     summary:
-      'This analysis is local-only and rule-based. No AI rewriting was performed. Verify recommendations against your specific use case.',
+      'This report reviews aggregate prompt habits using local rule-based analysis. It is coaching guidance, not a comprehensive human review.',
     coaching_notes: [
       'Scores are heuristic-based and may not capture all nuances of your workflow.',
       'Model recommendations reflect general capability classes, not specific provider benchmarks.',
+      'No raw prompt content is included in this report. CLI and export packaging are handled separately.',
     ],
   };
 }

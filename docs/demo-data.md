@@ -10,6 +10,7 @@ The built-in cookedPrompts demo dataset is synthetic. It is designed to exercise
 - Model overkill and model-fit recommendations.
 - Privacy and safety warning paths.
 - Rewrite guidance and reusable template suggestions.
+- Demo report rendering.
 
 ## Fake Secrets
 
@@ -23,4 +24,4 @@ The placeholders are not real credentials, not service tokens, and not internal 
 
 ## Privacy Boundary
 
-The demo dataset contains no real user prompts, no real model answers, and no private logs. V1 reports generated from this data do not include raw `prompt_text`.
+The demo dataset contains no real user prompts, no real model answers, no real credentials, and no private logs. V1 reports generated from this data do not include raw `prompt_text`.

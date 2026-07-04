@@ -58,10 +58,6 @@ Example:
 
 Do not shame the user for mistakes.
 
-## Report Privacy
-
-V1 reports must never include raw prompt text. Report renderers may accept future-facing options such as `include_prompt_text`, but those options are ignored in V1 report output.
-
 ## Cloud Future
 
 Supabase/cloud sync is not part of V1.

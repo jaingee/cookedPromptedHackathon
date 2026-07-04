@@ -28,7 +28,7 @@ V1 targets:
 
 ## V1 Product Direction
 
-V1 is a local-first coaching pipeline and dashboard data service that analyzes imported or mocked prompt logs after the fact.
+V1 is a local-first dashboard that analyzes imported or mocked prompt logs after the fact.
 
 V1 should help users understand:
 
@@ -43,7 +43,7 @@ V1 should help users understand:
 
 V1 includes:
 
-- Local-first coaching pipeline and dashboard data service
+- Local-first dashboard
 - Mocked/imported prompt logs
 - JSONL/CSV import and export
 - SQLite local storage
@@ -55,7 +55,7 @@ V1 includes:
 - Basic rewrite suggestions
 - Template saving
 - Markdown exports such as memory.md, prompt_style.md, model_rules.md, guardrails.md, skills.md, and hooks.md
-- Dashboard data service and minimal local CLI report surface
+- Basic dashboard and prompt detail page
 - Demo dataset for "20 Prompts Later: Your AI Habits Exposed"
 
 ## V1 Non-Goals
@@ -79,7 +79,7 @@ V1 must not include:
 
 ### V1
 
-Local-first prompt coaching pipeline using mocked/imported logs.
+Local-first prompt coaching dashboard using mocked/imported logs.
 
 ### V2
 
@@ -101,4 +101,4 @@ Import prompt logs → analyze prompt habits → show scores and risks → sugge
 
 ## Handoff
 
-For the public hackathon repo, `.kiro/specs/`, `.kiro/steering/`, and `docs/` record the visible roadmap, scope boundaries, and implementation notes. Internal handoff artifacts are intentionally excluded from the cleaned public repo.
+The root HANDOFF.md contains the detailed roadmap, implementation status, scope boundaries, and future-agent instructions. Read it before planning major changes.

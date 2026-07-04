@@ -25,6 +25,8 @@ coverage/
 # local exports / generated reports
 exports/
 reports/
+cooked-report.md
+cooked-report-*.md
 *.local.md
 *.generated.md
 

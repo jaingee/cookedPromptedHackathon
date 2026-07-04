@@ -5,20 +5,18 @@ description: Preferred current technical direction, local-first architecture, SQ
 
 # cookedPrompts Tech Steering
 
-## Current V1 Stack
+## Preferred V1 Stack
 
-Use a TypeScript-first local architecture. The current V1 hackathon implementation is a deterministic Node/TypeScript pipeline with local SQLite persistence, Vitest coverage, a dashboard data service, and a minimal local CLI report surface.
+Use a TypeScript-first local web app architecture.
 
-Current stack:
+Preferred stack:
 
 - TypeScript
-- Node.js local runtime
-- Vitest
+- React
+- Next.js unless there is a strong reason to choose Vite
 - SQLite for local structured storage
 - JSONL/CSV import and export
 - Markdown export for generated user profile and workflow files
-
-Future UI work may choose React/Next.js or another web stack after the local-first pipeline is stable.
 
 ## Kiro Model Assumption
 

@@ -29,13 +29,13 @@ renderReportMarkdown(report: Omit<DemoReport, 'markdown'>): string
 
 Fixed order:
 1. **Batch Overview** — total prompts, success rate, average score, duration
-2. **Prompt Health** — dimension averages ranked weakest→strongest
-3. **Issue Patterns** — most common issues with coaching notes
+2. **Prompt Health** — dimension averages ranked weakest→strongest (human-readable labels, e.g. "Context & Background: 2.8 / 5")
+3. **Issue Patterns** — most common issues with human-readable labels and coaching notes (e.g. "Missing context (×3)")
 4. **Safety & Privacy** — warning counts, severity breakdown, do_not_send_external
 5. **Model Recommendations** — class distribution, dominant-pattern coaching
 6. **Rewrite & Template Coaching** — severity distribution, top templates
-7. **Next Actions** — 3–5 prioritized coaching actions
-8. **Limitations** — local-only analysis disclaimer
+7. **Next Actions** — 3–5 prioritized coaching actions with clean source prefixes (Safety:, Issue:, Prompt health:, Model fit:)
+8. **Limitations** — contextual local-analysis coaching disclaimer
 
 ## Markdown Output
 

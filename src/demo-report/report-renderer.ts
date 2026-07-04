@@ -21,6 +21,7 @@ import {
   buildLimitations,
 } from './section-builders.js';
 import { renderReportMarkdown } from './markdown-renderer.js';
+import { humanizeIssueLabel } from './coaching-copy.js';
 
 /** Renderer version identifier. */
 export const DEMO_REPORT_RENDERER_VERSION = 'demo-report-renderer-v1';
@@ -73,8 +74,8 @@ export function renderDemoReport(
     buildLimitations(),
   ];
 
-  // Build summary string (coaching-tone)
-  const summaryText = buildSummaryText(input);
+  // Build summary string (coaching-tone) using normalized summary
+  const summaryText = buildSummaryText(summary, input.error);
 
   const report: DemoReport = {
     title: DEFAULT_DEMO_REPORT_TITLE,
@@ -94,9 +95,12 @@ export function renderDemoReport(
 
 /**
  * Build a coaching-tone summary mentioning key stats.
+ * Uses the normalized batch_summary (never reads raw input.batch_summary directly).
  */
-function buildSummaryText(input: UnifiedDemoOutput): string {
-  const { batch_summary, error } = input;
+function buildSummaryText(
+  batch_summary: NonNullable<UnifiedDemoOutput['batch_summary']>,
+  error?: string,
+): string {
   const parts: string[] = [];
 
   if (error) {
@@ -131,8 +135,25 @@ function buildSummaryText(input: UnifiedDemoOutput): string {
   }
 
   if (batch_summary.most_common_labels.length > 0) {
-    const topLabel = batch_summary.most_common_labels[0];
-    parts.push(`Most common issue: "${topLabel}".`);
+    const humanLabel = humanizeIssueLabel(batch_summary.most_common_labels[0]);
+    parts.push(`Most common issue: ${humanLabel}.`);
+  }
+
+  // Coaching hook based on aggregate data
+  if (batch_summary.most_common_labels.length > 0) {
+    const humanLabel = humanizeIssueLabel(batch_summary.most_common_labels[0]);
+    parts.push(`Biggest coaching opportunity: ${humanLabel}.`);
+  } else if (
+    batch_summary.average_overall_score !== null &&
+    batch_summary.average_overall_score < 3
+  ) {
+    parts.push('Your prompts need stronger structure before they scale.');
+  } else if (
+    batch_summary.average_overall_score !== null &&
+    batch_summary.average_overall_score >= 4 &&
+    batch_summary.safety_summary.prompts_with_warnings === 0
+  ) {
+    parts.push('Solid habits overall — now tighten the weak spots.');
   }
 
   return parts.join(' ');

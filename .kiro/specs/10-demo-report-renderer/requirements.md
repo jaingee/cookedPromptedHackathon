@@ -14,7 +14,7 @@ Product tone: "Roast the prompt. Coach the user. Improve the habit." — direct,
 - **UnifiedDemoOutput**: The complete pipeline output from 09-integration-demo-flow containing prompt_results, batch_summary, metadata, and optional error.
 - **DemoReport**: The structured report output containing title, summary, sections array, and optional markdown string.
 - **ReportSection**: A named section within DemoReport containing a heading, body data, and optional coaching notes.
-- **RenderOptions**: Configuration object controlling report rendering behavior. `include_prompt_text` is accepted for future API compatibility but ignored in V1.
+- **RenderOptions**: Configuration object controlling report rendering behavior (e.g., include_markdown, include_prompt_text opt-in).
 - **BatchSummary**: Aggregate statistics from UnifiedDemoOutput including averages, issue counts, safety summary, and model distribution.
 - **PipelineMetadata**: Pipeline run metadata including versions, timing, and input source.
 - **PromptResult**: Per-prompt result containing score, safety, model recommendation, rewrite, and template data.
@@ -152,8 +152,8 @@ Product tone: "Roast the prompt. Coach the user. Improve the habit." — direct,
 
 #### Acceptance Criteria
 
-1. THE Report_Renderer SHALL not include prompt_text in any report section.
-2. THE Report_Renderer SHALL accept include_prompt_text for future API compatibility, but ignore it in V1. The report must never include raw prompt_text, even when include_prompt_text is true.
+1. THE Report_Renderer SHALL not include prompt_text in any report section by default.
+2. WHERE include_prompt_text is explicitly set to true in RenderOptions, THE Report_Renderer SHALL include prompt_text only in a clearly labeled optional section, never in summary or aggregate sections.
 3. THE Report_Renderer SHALL not include any values from banned output fields (assistant_message, response, completion, model_answer, output_text, generated_text) in the report.
 4. THE Report_Renderer SHALL not include matched secret substrings or raw safety warning patterns that could reveal sensitive content.
 5. THE Report_Renderer SHALL produce content-free error messages only (step name, no stack traces, no prompt content).

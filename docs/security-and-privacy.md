@@ -2,6 +2,8 @@
 
 cookedPrompts V1 is local-first by default. Prompt logs are treated as private user data because they may contain source code, customer context, credentials, business strategy, or personal information.
 
+V1 is the local trust foundation for a future SaaS product. Future hosted features must preserve the same privacy posture: opt-in upload, redaction-aware flows, and no full-answer retention.
+
 ## V1 Guarantees
 
 - No cloud sync.
@@ -32,8 +34,12 @@ Warnings are coaching signals, not enforcement. V1 warns users to redact risky c
 
 ## Demo Reports
 
-V1 demo reports never include raw `prompt_text`, even when `include_prompt_text` is accepted for future API compatibility. Report output is aggregate and coaching-oriented.
+V1 demo reports never include raw `prompt_text`, even when `--include-prompt-text` or `include_prompt_text` is accepted for future API compatibility. Those options are intentionally ignored in V1 report output. Reports are aggregate and coaching-oriented.
 
 ## Demo Data
 
 The built-in demo dataset is synthetic. Fake secrets are placeholders only and are intentionally non-actionable.
+
+## Future Cloud Boundary
+
+Future SaaS/cloud sync must be opt-in, clear about what leaves the machine, and redaction-aware before upload. V1 deliberately proves the import, scoring, safety, model-fit, rewrite/template, and reporting loop locally before adding accounts or hosted dashboards.

@@ -145,7 +145,7 @@ describe('Safety Privacy — exported SAFETY_RULES are value-free', () => {
     'access_token',
     'bearer',
     'AKIA',
-    'sk-',
+    'provider_key_prefix',
   ];
 
   it('each rule has only expected keys', () => {

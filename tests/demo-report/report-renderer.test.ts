@@ -221,15 +221,15 @@ describe('renderDemoReport', () => {
   });
 
   describe('4.5 Dimension ranking (weakest first, null last)', () => {
-    it('ranks dimensions weakest first', () => {
+    it('ranks dimensions weakest first with human-readable labels', () => {
       const report = renderDemoReport(makeOutput(), { now: fixedNow });
       const healthSection = report.sections.find((s) => s.kind === 'prompt_health')!;
 
       expect(healthSection.items).toBeDefined();
       const items = healthSection.items!;
 
-      // First item should be the weakest dimension (context: 2.8)
-      expect(items[0]).toContain('context');
+      // First item should be the weakest dimension (context: 2.8) with human label
+      expect(items[0]).toContain('Context & Background');
       expect(items[0]).toContain('2.8');
     });
 
@@ -247,9 +247,9 @@ describe('renderDemoReport', () => {
       const healthSection = report.sections.find((s) => s.kind === 'prompt_health')!;
       const items = healthSection.items!;
 
-      // Last item should be the null one (constraints)
+      // Last item should be the null one (constraints) with human label
       const lastItem = items[items.length - 1];
-      expect(lastItem).toContain('constraints');
+      expect(lastItem).toContain('Constraints');
       expect(lastItem).toContain('N/A');
     });
 
@@ -289,7 +289,7 @@ describe('renderDemoReport', () => {
   });
 
   describe('4.6 Issue sorting and max cap', () => {
-    it('sorts issues by frequency descending', () => {
+    it('sorts issues by frequency descending with human-readable labels', () => {
       const output = makeOutput({
         batch_summary: makeBatchSummary({
           issue_label_counts: {
@@ -303,10 +303,10 @@ describe('renderDemoReport', () => {
       const issueSection = report.sections.find((s) => s.kind === 'issue_patterns')!;
       const items = issueSection.items!;
 
-      expect(items[0]).toContain('missing_context');
+      expect(items[0]).toContain('Missing context');
       expect(items[0]).toContain('×5');
-      expect(items[1]).toContain('unclear_task');
-      expect(items[2]).toContain('overbroad_prompt');
+      expect(items[1]).toContain('Unclear task');
+      expect(items[2]).toContain('Overbroad prompt');
     });
 
     it('caps issues at max_issue_patterns', () => {
@@ -336,10 +336,10 @@ describe('renderDemoReport', () => {
       const issueSection = report.sections.find((s) => s.kind === 'issue_patterns')!;
       const items = issueSection.items!;
 
-      // Alpha order: missing_context, overbroad_prompt, unclear_task
-      expect(items[0]).toContain('missing_context');
-      expect(items[1]).toContain('overbroad_prompt');
-      expect(items[2]).toContain('unclear_task');
+      // Alpha order by raw key: missing_context, overbroad_prompt, unclear_task
+      expect(items[0]).toContain('Missing context');
+      expect(items[1]).toContain('Overbroad prompt');
+      expect(items[2]).toContain('Unclear task');
     });
   });
 
@@ -543,7 +543,7 @@ describe('renderDemoReport', () => {
   });
 
   describe('4.10 Next actions priority ordering + padding to min 3', () => {
-    it('orders actions by priority (safety first)', () => {
+    it('orders actions by priority (safety first) with clean prefixes', () => {
       const output = makeOutput({
         batch_summary: makeBatchSummary({
           safety_summary: {
@@ -558,11 +558,15 @@ describe('renderDemoReport', () => {
       const actionsSection = report.sections.find((s) => s.kind === 'next_actions')!;
 
       expect(actionsSection.items).toBeDefined();
-      // First action should be safety-sourced
-      expect(actionsSection.items![0]).toContain('[safety]');
+      // First action should have Safety: prefix (no brackets)
+      expect(actionsSection.items![0]).toMatch(/^Safety:/);
+      // No bracket-style prefixes
+      for (const item of actionsSection.items!) {
+        expect(item).not.toMatch(/^\[/);
+      }
     });
 
-    it('pads to minimum 3 actions with encouragement', () => {
+    it('pads to minimum 3 actions with encouragement (no prefix)', () => {
       const output = makeOutput({
         batch_summary: makeBatchSummary({
           safety_summary: {
@@ -580,6 +584,10 @@ describe('renderDemoReport', () => {
 
       expect(actionsSection.items).toBeDefined();
       expect(actionsSection.items!.length).toBeGreaterThanOrEqual(3);
+      // Encouragement items have no prefix
+      for (const item of actionsSection.items!) {
+        expect(item).not.toMatch(/^Safety:|^Issue:|^Prompt health:|^Model fit:/);
+      }
     });
 
     it('caps at max_actions', () => {
@@ -659,6 +667,186 @@ describe('renderDemoReport', () => {
       const customNow = () => '2030-01-01T00:00:00.000Z';
       const report = renderDemoReport(makeOutput(), { now: customNow });
       expect(report.generated_at).toBe('2030-01-01T00:00:00.000Z');
+    });
+  });
+
+  describe('4.14 Summary coaching hook', () => {
+    it('includes coaching hook when most_common_labels exists', () => {
+      const output = makeOutput({
+        batch_summary: makeBatchSummary({
+          most_common_labels: ['missing_context', 'unclear_task'],
+        }),
+      });
+      const report = renderDemoReport(output, { now: fixedNow });
+      expect(report.summary).toContain('Biggest coaching opportunity: Missing context.');
+    });
+
+    it('includes weak structure hook when avg score < 3 and no common labels', () => {
+      const output = makeOutput({
+        batch_summary: makeBatchSummary({
+          average_overall_score: 2.5,
+          most_common_labels: [],
+        }),
+      });
+      const report = renderDemoReport(output, { now: fixedNow });
+      expect(report.summary).toContain('Your prompts need stronger structure before they scale.');
+    });
+
+    it('includes solid habits hook when avg >= 4 and no safety warnings and no common labels', () => {
+      const output = makeOutput({
+        batch_summary: makeBatchSummary({
+          average_overall_score: 4.2,
+          most_common_labels: [],
+          safety_summary: {
+            prompts_with_warnings: 0,
+            severity_counts: {},
+            do_not_send_external_count: 0,
+          },
+        }),
+      });
+      const report = renderDemoReport(output, { now: fixedNow });
+      expect(report.summary).toContain('Solid habits overall — now tighten the weak spots.');
+    });
+
+    it('prefers most_common_labels hook over score-based hooks', () => {
+      const output = makeOutput({
+        batch_summary: makeBatchSummary({
+          average_overall_score: 2.0,
+          most_common_labels: ['unclear_task'],
+        }),
+      });
+      const report = renderDemoReport(output, { now: fixedNow });
+      expect(report.summary).toContain('Biggest coaching opportunity: Unclear task.');
+      expect(report.summary).not.toContain('stronger structure');
+    });
+  });
+
+  describe('Copy polish verification — regression tests', () => {
+    describe('Test 1 — summary humanizes most common issue', () => {
+      it('shows human-readable issue label in summary, not raw key', () => {
+        const output = makeOutput({
+          batch_summary: makeBatchSummary({
+            most_common_labels: ['missing_context'],
+            issue_label_counts: { missing_context: 4 },
+          }),
+        });
+        const report = renderDemoReport(output, { now: fixedNow });
+
+        expect(report.summary).toContain('Most common issue: Missing context.');
+        expect(report.summary).toContain('Biggest coaching opportunity: Missing context.');
+        expect(report.summary).not.toContain('"missing_context"');
+        expect(report.summary).not.toContain('Most common issue: "missing_context"');
+      });
+    });
+
+    describe('Test 2 — next actions humanize issue labels', () => {
+      it('uses human-readable issue labels in action text', () => {
+        const output = makeOutput({
+          batch_summary: makeBatchSummary({
+            issue_label_counts: { missing_context: 5 },
+            most_common_labels: ['missing_context'],
+            // No safety to ensure issue action is visible
+            safety_summary: {
+              prompts_with_warnings: 0,
+              severity_counts: {},
+              do_not_send_external_count: 0,
+            },
+          }),
+        });
+        const report = renderDemoReport(output, { now: fixedNow });
+        const actionsSection = report.sections.find((s) => s.kind === 'next_actions')!;
+        const items = actionsSection.items!;
+
+        // Should contain humanized label
+        const issueItem = items.find((i) => i.startsWith('Issue:'));
+        expect(issueItem).toBeDefined();
+        expect(issueItem).toContain('Fix "Missing context"');
+
+        // Should NOT contain raw key or bracketed prefix
+        for (const item of items) {
+          expect(item).not.toContain('missing_context');
+          expect(item).not.toContain('[issue]');
+        }
+      });
+    });
+
+    describe('Test 3 — next actions humanize dimension labels', () => {
+      it('uses human-readable dimension labels in action text', () => {
+        const output = makeOutput({
+          batch_summary: makeBatchSummary({
+            // Low dimension score to trigger dimension action
+            dimension_averages: { context: 2.0, clarity: 4.5 },
+            // No safety, no issues to ensure dimension action is visible
+            safety_summary: {
+              prompts_with_warnings: 0,
+              severity_counts: {},
+              do_not_send_external_count: 0,
+            },
+            issue_label_counts: {},
+            most_common_labels: [],
+            model_class_distribution: {},
+          }),
+        });
+        const report = renderDemoReport(output, { now: fixedNow });
+        const actionsSection = report.sections.find((s) => s.kind === 'next_actions')!;
+        const items = actionsSection.items!;
+
+        // Should contain humanized dimension label
+        const dimItem = items.find((i) => i.startsWith('Prompt health:'));
+        expect(dimItem).toBeDefined();
+        expect(dimItem).toContain('Improve Context & Background');
+
+        // Should NOT contain raw patterns
+        for (const item of items) {
+          expect(item).not.toContain('"context" dimension');
+          expect(item).not.toContain('[dimension]');
+        }
+      });
+    });
+
+    describe('Test 4 — partial fallback summary does not throw', () => {
+      it('handles deliberately partial input without throwing', () => {
+        const partial = {
+          prompt_results: [],
+        } as unknown as UnifiedDemoOutput;
+
+        const report = renderDemoReport(partial, { now: fixedNow });
+
+        expect(report.sections).toHaveLength(8);
+        expect(report.summary).toContain('No prompts');
+        expect(report.summary).not.toContain('undefined');
+        expect(report.summary).not.toContain('Error');
+        expect(report.summary).not.toContain('at ');
+      });
+    });
+
+    describe('Test 5 — markdown avoids raw known labels', () => {
+      it('markdown uses human labels, not raw identifiers', () => {
+        const output = makeOutput({
+          batch_summary: makeBatchSummary({
+            most_common_labels: ['missing_context'],
+            issue_label_counts: { missing_context: 4 },
+            dimension_averages: {
+              context: 2.5,
+              output_format: 3.0,
+              clarity: 4.0,
+            },
+          }),
+        });
+        const report = renderDemoReport(output, { now: fixedNow, include_markdown: true });
+        const md = report.markdown!;
+
+        // Should contain human-readable labels
+        expect(md).toContain('Missing context');
+        expect(md).toContain('Context & Background');
+        expect(md).toContain('Output Format');
+
+        // Should NOT contain raw identifiers in user-facing content
+        expect(md).not.toContain('missing_context');
+        expect(md).not.toContain('output_format');
+        expect(md).not.toContain('[issue]');
+        expect(md).not.toContain('[dimension]');
+      });
     });
   });
 });

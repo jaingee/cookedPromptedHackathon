@@ -67,3 +67,40 @@ export const GENERAL_ENCOURAGEMENT_ACTIONS: string[] = [
   'Experiment with a cheaper model for routine tasks — save frontier models for hard problems.',
   'Create a personal prompt template for your most common task type.',
 ];
+
+/** Human-readable labels for scoring dimensions. */
+export const DIMENSION_DISPLAY_LABELS: Record<string, string> = {
+  clarity: 'Clarity',
+  context: 'Context & Background',
+  constraints: 'Constraints',
+  output_format: 'Output Format',
+  capability_fit: 'Capability Fit',
+  efficiency: 'Efficiency',
+  safety_privacy: 'Safety & Privacy',
+};
+
+/** Human-readable labels for issue labels. */
+export const ISSUE_LABEL_DISPLAY_NAMES: Record<string, string> = {
+  missing_context: 'Missing context',
+  unclear_task: 'Unclear task',
+  missing_constraints: 'Missing constraints',
+  missing_output_format: 'Missing output format',
+  overbroad_prompt: 'Overbroad prompt',
+  privacy_risk: 'Privacy risk',
+  possible_secret: 'Possible secret',
+  wrong_model_class: 'Wrong model class',
+  overpowered_model: 'Overpowered model',
+  needs_search: 'Needs search',
+  needs_tool_use: 'Needs tool use',
+  too_long_for_task: 'Too long for task',
+};
+
+/** Get human-readable dimension label, fallback to raw key. */
+export function humanizeDimension(key: string): string {
+  return DIMENSION_DISPLAY_LABELS[key] ?? key;
+}
+
+/** Get human-readable issue label, fallback to raw key. */
+export function humanizeIssueLabel(key: string): string {
+  return ISSUE_LABEL_DISPLAY_NAMES[key] ?? key;
+}
