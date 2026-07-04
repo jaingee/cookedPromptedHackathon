@@ -144,6 +144,8 @@ Want to see the output before running the CLI?
 
 See [`docs/sample-report.md`](docs/sample-report.md) for a committed sample report generated from the built-in synthetic demo dataset.
 
+The preview intentionally avoids raw prompt text. It includes a short reading guide that explains how aggregate issue patterns, safety warnings, model recommendations, and rewrite/template suggestions translate into coaching actions.
+
 To regenerate it locally:
 
 ```bash

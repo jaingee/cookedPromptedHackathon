@@ -12,6 +12,30 @@ Privacy note: this sample is generated from synthetic demo data. It should not c
 
 ---
 
+## How to read this sample
+
+This report intentionally avoids raw prompt examples.
+
+Instead of showing the user's original prompt text, cookedPrompts summarizes repeated patterns and turns them into coaching signals. This protects privacy while still showing what needs to improve.
+
+Example interpretation:
+
+| Pattern | What it means | Coaching move |
+|---|---|---|
+| **Missing constraints** | The user asked for help but did not define length, tone, scope, acceptance criteria, or boundaries. | Add constraints such as "keep it under 200 words," "use bullet points," "focus only on implementation risks," or "do not change the public API." |
+| **Missing output format** | The user did not tell the model what shape the answer should take. | Ask for a table, checklist, JSON object, code block, step-by-step plan, or final paste-ready draft. |
+| **Missing context** | The model was not given enough background, goal, audience, or project state. | Add the relevant situation, constraints, prior decisions, and what "done" should look like. |
+| **Wrong model class** | The task used more model capability than needed, or not enough capability for the reasoning required. | Use cheaper/faster models for simple transformations and reserve stronger reasoning models for architecture, debugging, planning, or complex tradeoffs. |
+| **Possible secret / privacy risk** | The prompt appeared to contain credential-like or sensitive content. | Replace secrets, customer details, internal URLs, and private data with placeholders before sending anything externally. |
+
+So when the report says "Missing constraints x18," the coaching takeaway is not "these 18 prompts were bad." The takeaway is:
+
+> "This user repeatedly asks for help without defining the boundaries of a good answer."
+
+That makes the next action clear: improve the prompt habit, not just one prompt.
+
+---
+
 # 20 Prompts Later: Your AI Habits Exposed
 
 Analyzed 20 prompts with a 100% success rate. Average prompt score: 2.95/5. 3 prompts flagged with safety concerns. Most common issue: Missing constraints. Biggest coaching opportunity: Missing constraints.
