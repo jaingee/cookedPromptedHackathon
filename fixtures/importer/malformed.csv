@@ -1,0 +1,3 @@
+id,timestamp,source,provider,model_used,prompt_text
+fix-bad-001,2025-03-01T10:00:00Z,manual,openai,gpt-4o,"This field has an unclosed quote
+fix-bad-002,2025-03-01T10:05:00Z,manual,openai,gpt-4o,This row is fine

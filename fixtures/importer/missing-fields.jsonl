@@ -1,0 +1,4 @@
+{"id":"miss-001","timestamp":"2025-04-01T10:00:00Z","source":"manual","provider":"openai","model_used":"gpt-4o"}
+{"id":"miss-002","source":"manual","provider":"openai","model_used":"gpt-4o","prompt_text":"Missing timestamp."}
+{"timestamp":"2025-04-01T10:10:00Z","source":"manual","provider":"openai","model_used":"gpt-4o","prompt_text":"Missing id."}
+{"id":"miss-004","timestamp":"2025-04-01T10:15:00Z","provider":"openai","model_used":"gpt-4o","prompt_text":"Missing source."}

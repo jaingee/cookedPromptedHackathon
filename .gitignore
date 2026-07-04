@@ -1,0 +1,37 @@
+# dependencies / builds
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# local databases
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.sqlite-journal
+
+# logs / coverage
+*.log
+logs/
+coverage/
+.nyc_output/
+
+# local exports / generated reports
+exports/
+reports/
+*.local.md
+*.generated.md
+
+# temp / OS / editor
+.tmp/
+temp/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,4 @@
+id,timestamp,source,provider,model_used,prompt_text,input_tokens,output_tokens,total_tokens,estimated_cost,latency_ms,tags,solved_status,user_rating
+fix-csv-001,2025-02-01T08:00:00Z,manual,openai,gpt-4o,Explain closures in JavaScript.,10,80,90,0.003,1200,"coding,javascript",solved,4
+fix-csv-002,2025-02-01T08:05:00Z,manual,anthropic,claude-sonnet,"Write a function that reverses a string, handling unicode correctly.",15,100,115,0.002,1500,"coding,unicode",solved,5
+fix-csv-003,2025-02-01T08:10:00Z,manual,openai,gpt-3.5-turbo,What is DNS?,4,60,64,0.001,600,,solved,3

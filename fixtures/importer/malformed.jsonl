@@ -1,0 +1,6 @@
+{"id":"good-001","timestamp":"2025-01-20T12:00:00Z","source":"manual","provider":"openai","model_used":"gpt-4o","prompt_text":"Valid entry."}
+{this is not valid json at all
+{"id":"good-002","timestamp":"2025-01-20T12:05:00Z","source":"manual","provider":"openai","model_used":"gpt-4o","prompt_text":"Another valid entry."}
+["array","not","object"]
+42
+{"id":"good-003","timestamp":"2025-01-20T12:10:00Z","source":"manual","provider":"openai","model_used":"gpt-4o","prompt_text":"Third valid entry."}

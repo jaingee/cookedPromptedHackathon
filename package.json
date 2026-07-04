@@ -1,0 +1,20 @@
+{
+  "name": "cooked-prompts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "20.14.10",
+    "typescript": "5.5.4",
+    "vitest": "2.0.3"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1"
+  }
+}

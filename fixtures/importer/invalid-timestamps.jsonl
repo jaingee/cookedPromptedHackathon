@@ -1,0 +1,3 @@
+{"id":"ts-001","timestamp":"not-a-date","source":"manual","provider":"openai","model_used":"gpt-4o","prompt_text":"Bad timestamp."}
+{"id":"ts-002","timestamp":"2025-13-45T99:99:99Z","source":"manual","provider":"openai","model_used":"gpt-4o","prompt_text":"Impossible date."}
+{"id":"ts-003","timestamp":"2025-06-15T10:30:00Z","source":"manual","provider":"openai","model_used":"gpt-4o","prompt_text":"Valid timestamp for contrast."}
