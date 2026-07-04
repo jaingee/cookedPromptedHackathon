@@ -138,6 +138,28 @@ npm run demo:save
    - `.kiro/specs/10-demo-report-renderer/`
    - `.kiro/specs/11-demo-runner-cli/`
 
+## Report preview
+
+Want to see the output before running the CLI?
+
+See [`docs/sample-report.md`](docs/sample-report.md) for a committed sample report generated from the built-in synthetic demo dataset.
+
+To regenerate it locally:
+
+```bash
+npm run demo:save
+cp cooked-report.md docs/sample-report.md
+rm cooked-report.md
+```
+
+On Windows PowerShell:
+
+```powershell
+npm run demo:save
+Copy-Item .\cooked-report.md .\docs\sample-report.md -Force
+Remove-Item .\cooked-report.md -Force
+```
+
 ## What judges can verify
 
 | Claim | Where to verify |
