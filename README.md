@@ -4,7 +4,7 @@
 
 A local-first AI prompt coaching tool that reviews your past prompts, identifies weak patterns, teaches better model choice, detects privacy risks, and turns recurring mistakes into reusable templates.
 
-V1 is the completed local-first trust foundation for a future SaaS product.
+V1 is a completed local-first demo pipeline for privacy-safe prompt habit coaching.
 
 ## What cookedPrompts does
 
@@ -14,15 +14,15 @@ No cloud. No login. No external AI judge. Just local rule-based analysis of your
 
 ## Why V1 is local-first
 
-cookedPrompts is designed to become a SaaS product later, but V1 is intentionally local-first because prompt logs can contain sensitive personal, technical, or company information.
+Prompt logs can contain sensitive personal, technical, or company information, so V1 is intentionally local-first.
 
-Before adding accounts, cloud sync, hosted dashboards, or integrations, the product first proves the core coaching loop locally:
+Before adding hosted features or integrations, cookedPrompts first proves the core coaching loop locally:
 
 ```text
 import prompts -> analyze habits -> flag risks -> recommend model fit -> suggest templates -> render report
 ```
 
-This makes the future SaaS version safer because privacy, redaction, deterministic analysis, and no-full-answer retention are designed into the foundation instead of added later.
+This keeps the hackathon demo focused, reviewable, and privacy-safe while preserving a clear path for future versions.
 
 ## V1 Product Walkthrough
 
