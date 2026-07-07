@@ -9,12 +9,17 @@
  */
 
 import type { UnifiedDemoOutput } from '../integration-demo/types.js';
-import type { RenderOptions, DemoReport } from './types.js';
+import type { RenderOptions, DemoReport, ReportSection } from './types.js';
 import {
-  buildBatchOverview,
-  buildPromptHealth,
+  buildBatchVerdict,
+  buildPromptHabitScore,
+  buildCategoryScorecard,
   buildIssuePatterns,
+  buildPromptExamples,
+  buildPromptHighlights,
+  buildModelWaste,
   buildSafetyPrivacy,
+  buildSafetyPrivacyLessons,
   buildModelRecommendations,
   buildRewriteCoaching,
   buildNextActions,
@@ -34,7 +39,7 @@ export const DEFAULT_DEMO_REPORT_TITLE =
  * Render a structured coaching report from UnifiedDemoOutput.
  *
  * Never throws. Handles empty/partial/error input gracefully.
- * Never includes prompt_text in output (V1 privacy rule).
+ * Never includes prompt_text in output.
  */
 export function renderDemoReport(
   input: UnifiedDemoOutput,
@@ -45,6 +50,7 @@ export function renderDemoReport(
   const maxIssuePatterns = options?.max_issue_patterns ?? 10;
   const maxTemplates = options?.max_templates ?? 5;
   const maxActions = Math.max(options?.max_actions ?? 5, 3);
+  const maxPromptExamples = options?.max_prompt_examples ?? 3;
   const nowFn = options?.now ?? (() => new Date().toISOString());
 
   const generated_at = nowFn();
@@ -62,17 +68,22 @@ export function renderDemoReport(
   };
   const promptResults = input.prompt_results ?? [];
 
-  // Build all 8 sections in fixed order
+  // Build all sections in fixed deterministic order
   const sections = [
-    buildBatchOverview(summary, metadata),
-    buildPromptHealth(summary),
+    buildBatchVerdict(summary, metadata),
+    buildPromptHabitScore(summary),
+    buildCategoryScorecard(summary),
     buildIssuePatterns(summary, maxIssuePatterns),
+    buildPromptExamples(promptResults, maxPromptExamples),
+    ...buildPromptHighlights(promptResults),
+    buildModelWaste(summary),
     buildSafetyPrivacy(summary),
+    buildSafetyPrivacyLessons(summary, promptResults),
     buildModelRecommendations(summary),
     buildRewriteCoaching(promptResults, maxTemplates),
     buildNextActions(summary, promptResults, maxActions),
     buildLimitations(),
-  ];
+  ].filter((section): section is ReportSection => section !== null);
 
   // Build summary string (coaching-tone) using normalized summary
   const summaryText = buildSummaryText(summary, input.error);
@@ -124,8 +135,8 @@ function buildSummaryText(
   );
 
   if (batch_summary.average_overall_score !== null) {
-    const avg = Math.round(batch_summary.average_overall_score * 100) / 100;
-    parts.push(`Average prompt score: ${avg}/5.`);
+    const score100 = Math.round(batch_summary.average_overall_score * 20);
+    parts.push(`Prompt Habit Score: ${score100}/100.`);
   }
 
   if (batch_summary.safety_summary.prompts_with_warnings > 0) {

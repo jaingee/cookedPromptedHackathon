@@ -2,7 +2,7 @@
  * cookedPrompts — Demo Report Section Builders
  *
  * Pure deterministic builder functions for each report section.
- * Each returns a ReportSection. No I/O, no mutation, no prompt_text.
+ * Each returns a ReportSection. No I/O, no mutation, no raw prompt_text.
  *
  * Sorting rules:
  * - Dimensions: ascending by score, null last
@@ -25,11 +25,25 @@ import {
   humanizeDimension,
   humanizeIssueLabel,
 } from './coaching-copy.js';
+import {
+  buildPromptExamplesSection,
+  buildPromptHighlightsSections,
+} from './prompt-examples.js';
+import {
+  buildModelWasteSection,
+  buildSafetyPrivacyLessonsSection,
+} from './teaching-sections.js';
+import {
+  buildCategoryScores100,
+  getScoreBand,
+  getScoreBandInterpretation,
+  toScore100,
+} from './scorecard.js';
 
 /**
- * 1. Batch Overview — total, succeeded, failed, %, avg score, duration.
+ * 1. Batch Verdict — total, success rate, score band, and quick coaching read.
  */
-export function buildBatchOverview(
+export function buildBatchVerdict(
   summary: BatchSummary,
   metadata: PipelineMetadata,
 ): ReportSection {
@@ -37,84 +51,87 @@ export function buildBatchOverview(
     summary.total_prompts > 0
       ? Math.round((summary.succeeded / summary.total_prompts) * 100)
       : 0;
-
-  const avgScore =
-    summary.average_overall_score !== null
-      ? Math.round(summary.average_overall_score * 100) / 100
-      : null;
+  const overallScore100 = toScore100(summary.average_overall_score);
+  const scoreBand = getScoreBand(overallScore100);
+  const commonIssue = summary.most_common_labels[0];
 
   return {
-    kind: 'batch_overview',
-    heading: 'Batch Overview',
+    kind: 'batch_verdict',
+    heading: 'Batch Verdict',
     summary:
       summary.total_prompts === 0
-        ? 'No prompts analyzed.'
-        : `Analyzed ${summary.total_prompts} prompts with a ${successPct}% success rate.`,
+        ? 'No prompts analyzed yet, so there is no batch verdict to grade.'
+        : `${getScoreBandInterpretation(scoreBand)} ${
+            commonIssue
+              ? `Main drag on results: ${humanizeIssueLabel(commonIssue)}.`
+              : 'No single issue pattern dominated this batch.'
+          }`,
+    overall_score_100: overallScore100,
+    score_band: scoreBand,
     metrics: [
       { label: 'Total prompts', value: summary.total_prompts },
       { label: 'Succeeded', value: summary.succeeded },
       { label: 'Failed', value: summary.failed },
       { label: 'Success rate', value: successPct, unit: '%' },
-      { label: 'Average score', value: avgScore, unit: '/ 5' },
       { label: 'Duration', value: metadata.total_duration_ms, unit: 'ms' },
     ],
+    coaching_notes:
+      summary.total_prompts > 0
+        ? [
+            `This verdict is based on aggregate local scoring across ${summary.total_prompts} prompt${summary.total_prompts === 1 ? '' : 's'}.`,
+          ]
+        : undefined,
   };
 }
 
 /**
- * 2. Prompt Health — dimension averages ranked weakest→strongest.
+ * 2. Prompt Habit Score — overall batch score in Lighthouse-style 0-100 form.
  */
-export function buildPromptHealth(summary: BatchSummary): ReportSection {
-  const dims = summary.dimension_averages;
-  const entries = Object.entries(dims);
+export function buildPromptHabitScore(summary: BatchSummary): ReportSection {
+  const overallScore100 = toScore100(summary.average_overall_score);
+  const scoreBand = getScoreBand(overallScore100);
 
-  if (entries.length === 0) {
+  if (overallScore100 === null) {
     return {
-      kind: 'prompt_health',
-      heading: 'Prompt Health',
-      summary: 'Not enough data to assess prompt health.',
+      kind: 'prompt_habit_score',
+      heading: 'Prompt Habit Score',
+      summary: 'Not enough scored prompts to calculate a habit score yet.',
+      overall_score_100: null,
+      score_band: null,
     };
   }
 
-  // Sort: ascending by score, null last; alpha tiebreaker
-  const sorted = entries.sort((a, b) => {
-    if (a[1] === null && b[1] === null) return a[0].localeCompare(b[0]);
-    if (a[1] === null) return 1;
-    if (b[1] === null) return -1;
-    if (a[1] !== b[1]) return a[1] - b[1];
-    return a[0].localeCompare(b[0]);
-  });
-
-  const items = sorted.map(([dim, val]) => {
-    const score = val !== null ? (Math.round(val * 100) / 100).toString() : 'N/A';
-    return `${humanizeDimension(dim)}: ${score} / 5`;
-  });
-
-  // Coaching for weakest 1–2 dimensions (non-null, score < 3.5)
-  const weakDims = sorted
-    .filter(([, val]) => val !== null && val < 3.5)
-    .slice(0, 2);
-
-  const coaching_notes: string[] = weakDims
-    .map(([dim]) => DIMENSION_COACHING_NOTES[dim])
-    .filter((note): note is string => note !== undefined);
-
-  const section: ReportSection = {
-    kind: 'prompt_health',
-    heading: 'Prompt Health',
-    summary: `Dimensions ranked from weakest to strongest.`,
-    items,
+  return {
+    kind: 'prompt_habit_score',
+    heading: 'Prompt Habit Score',
+    summary: getScoreBandInterpretation(scoreBand),
+    overall_score_100: overallScore100,
+    score_band: scoreBand,
   };
-
-  if (coaching_notes.length > 0) {
-    section.coaching_notes = coaching_notes;
-  }
-
-  return section;
 }
 
 /**
- * 3. Issue Patterns — top N issues by frequency with coaching notes.
+ * 3. Category Scorecard — fixed category list using 0-100 score conversion.
+ */
+export function buildCategoryScorecard(summary: BatchSummary): ReportSection {
+  const categoryScores = buildCategoryScores100(summary.dimension_averages);
+  const coaching_notes = categoryScores
+    .filter((entry) => entry.score_100 !== null && entry.score_100 < 70)
+    .slice(0, 2)
+    .map((entry) => entry.coaching_note)
+    .filter((note): note is string => note !== undefined);
+
+  return {
+    kind: 'category_scorecard',
+    heading: 'Category Scorecard',
+    summary: 'Fixed-category scoring so you can spot weak habits quickly.',
+    category_scores_100: categoryScores,
+    coaching_notes: coaching_notes.length > 0 ? coaching_notes : undefined,
+  };
+}
+
+/**
+ * 4. What Kept Hurting Results — top N issues by frequency with coaching notes.
  */
 export function buildIssuePatterns(
   summary: BatchSummary,
@@ -126,7 +143,7 @@ export function buildIssuePatterns(
   if (entries.length === 0) {
     return {
       kind: 'issue_patterns',
-      heading: 'Issue Patterns',
+      heading: 'What Kept Hurting Results',
       summary: 'No recurring issues detected. Your prompts are clean.',
     };
   }
@@ -149,7 +166,7 @@ export function buildIssuePatterns(
 
   const section: ReportSection = {
     kind: 'issue_patterns',
-    heading: 'Issue Patterns',
+    heading: 'What Kept Hurting Results',
     summary: `Found ${sorted.length} recurring issue pattern${sorted.length === 1 ? '' : 's'}.`,
     items,
   };
@@ -162,7 +179,40 @@ export function buildIssuePatterns(
 }
 
 /**
- * 4. Safety / Privacy — warnings count, severity breakdown, do_not_send_external.
+ * 5. Safety / Privacy — warnings count, severity breakdown, do_not_send_external.
+ */
+/**
+ * 4. Prompt Examples â€” redacted local examples from the weakest prompts.
+ */
+export function buildPromptExamples(
+  promptResults: PromptResult[],
+  maxPromptExamples: number,
+): ReportSection | null {
+  return buildPromptExamplesSection(promptResults, maxPromptExamples);
+}
+
+/**
+ * 4. Coaching highlights â€” Roast of the Batch and One Good Prompt Worth Copying.
+ */
+export function buildPromptHighlights(
+  promptResults: PromptResult[],
+): ReportSection[] {
+  const highlights = buildPromptHighlightsSections(promptResults);
+  const sections: ReportSection[] = [];
+
+  if (highlights.roast_of_the_batch) {
+    sections.push(highlights.roast_of_the_batch);
+  }
+
+  if (highlights.copy_worthy_prompt) {
+    sections.push(highlights.copy_worthy_prompt);
+  }
+
+  return sections;
+}
+
+/**
+ * 5. Safety / Privacy â€” warnings count, severity breakdown, do_not_send_external.
  */
 export function buildSafetyPrivacy(summary: BatchSummary): ReportSection {
   const safety = summary.safety_summary;
@@ -187,7 +237,7 @@ export function buildSafetyPrivacy(summary: BatchSummary): ReportSection {
 
   for (const sev of severityOrder) {
     if (severityCounts[sev] && severityCounts[sev] > 0) {
-      severityItems.push(`${sev}: ${severityCounts[sev]}`);
+      severityItems.push(`${capitalize(sev)} warnings: ${severityCounts[sev]}`);
     }
   }
 
@@ -197,7 +247,7 @@ export function buildSafetyPrivacy(summary: BatchSummary): ReportSection {
     .filter(([key, val]) => !knownSet.has(key) && val > 0)
     .sort((a, b) => a[0].localeCompare(b[0]));
   for (const [key, val] of unknownSeverities) {
-    severityItems.push(`${key}: ${val}`);
+    severityItems.push(`${capitalize(key)} warnings: ${val}`);
   }
 
   return {
@@ -217,8 +267,25 @@ export function buildSafetyPrivacy(summary: BatchSummary): ReportSection {
 }
 
 /**
- * 5. Model Recommendations — class distribution sorted by frequency.
+ * 6. Model Recommendations — class distribution sorted by frequency.
  */
+/**
+ * 5a. Model Waste / Overkill â€” overpowered model and underfit model fit signals.
+ */
+export function buildModelWaste(summary: BatchSummary): ReportSection | null {
+  return buildModelWasteSection(summary);
+}
+
+/**
+ * 5b. Safety & Privacy Lessons â€” action-oriented redaction and sharing guidance.
+ */
+export function buildSafetyPrivacyLessons(
+  summary: BatchSummary,
+  promptResults: PromptResult[],
+): ReportSection | null {
+  return buildSafetyPrivacyLessonsSection(summary, promptResults);
+}
+
 export function buildModelRecommendations(summary: BatchSummary): ReportSection {
   const dist = summary.model_class_distribution;
   const entries = Object.entries(dist);
@@ -269,7 +336,7 @@ export function buildModelRecommendations(summary: BatchSummary): ReportSection 
 }
 
 /**
- * 6. Rewrite / Template Coaching — severity distribution, top N templates.
+ * 7. Rewrite / Template Coaching — severity distribution, top N templates.
  */
 export function buildRewriteCoaching(
   promptResults: PromptResult[],
@@ -339,7 +406,7 @@ export function buildRewriteCoaching(
 }
 
 /**
- * 7. Next Actions — 3–5 prioritized actions.
+ * 8. Top Fixes Checklist — 3–5 prioritized actions.
  * Priority order: safety → issues → dimensions → model fit.
  * Pads to min 3 with general encouragement.
  */
@@ -453,7 +520,7 @@ export function buildNextActions(
 
   return {
     kind: 'next_actions',
-    heading: 'Next Actions',
+    heading: 'Top Fixes Checklist',
     summary: `${finalActions.length} prioritized action${finalActions.length === 1 ? '' : 's'} to improve your prompt habits.`,
     items,
   };
@@ -472,7 +539,7 @@ function formatActionSource(source: string): string {
 }
 
 /**
- * 8. Limitations — static local-only note.
+ * 9. Limitations — static local-only note.
  */
 export function buildLimitations(): ReportSection {
   return {
@@ -483,7 +550,12 @@ export function buildLimitations(): ReportSection {
     coaching_notes: [
       'Scores are heuristic-based and may not capture all nuances of your workflow.',
       'Model recommendations reflect general capability classes, not specific provider benchmarks.',
-      'No raw prompt content is included in this report. CLI and export packaging are handled separately.',
+      'This report stays local and deterministic. The full 12D report is complete and ready for use.',
     ],
   };
+}
+
+function capitalize(value: string): string {
+  if (value.length === 0) return value;
+  return `${value[0].toUpperCase()}${value.slice(1)}`;
 }

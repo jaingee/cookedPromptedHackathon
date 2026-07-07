@@ -2,7 +2,7 @@
 
 cookedPrompts V1 is local-first by default. Prompt logs are treated as private user data because they may contain source code, customer context, credentials, business strategy, or personal information.
 
-V1 is the local trust foundation for a future SaaS product. Future hosted features must preserve the same privacy posture: opt-in upload, redaction-aware flows, and no full-answer retention.
+V1 is complete through `14-local-dashboard-ui` and remains local-first. Any future hosted features must preserve the same privacy posture: opt-in upload, redaction-aware flows, and no full-answer retention.
 
 ## V1 Guarantees
 
@@ -34,7 +34,7 @@ Warnings are coaching signals, not enforcement. V1 warns users to redact risky c
 
 ## Demo Reports
 
-V1 demo reports never include raw `prompt_text`, even when `--include-prompt-text` or `include_prompt_text` is accepted for future API compatibility. Those options are intentionally ignored in V1 report output. Reports are aggregate and coaching-oriented.
+V1 demo reports can include synthetic or redacted local prompt excerpts as part of coaching examples. They do not include full model answers, banned full-answer fields, raw matched secret values, or raw safety warning text. `--include-prompt-text` and `include_prompt_text` are accepted for compatibility, but the public report boundary still stays coaching-oriented rather than exposing raw prompt-log dumps.
 
 ## Demo Data
 

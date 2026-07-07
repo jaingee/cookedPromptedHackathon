@@ -5,6 +5,7 @@ import {
   DEFAULT_DEMO_REPORT_TITLE,
 } from '../../src/demo-report/index.js';
 import type { DemoReport, ReportSectionKind } from '../../src/demo-report/index.js';
+import { getScoreBand, toScore100 } from '../../src/demo-report/scorecard.js';
 import type {
   UnifiedDemoOutput,
   BatchSummary,
@@ -20,6 +21,7 @@ import type { RewriteSuggestion, TemplateSuggestion } from '../../src/rewrite-te
 
 const FIXED_NOW = '2026-07-04T12:00:00.000Z';
 const fixedNow = () => FIXED_NOW;
+const REDACTION_SECRET = ['sk', 'test1234567890'].join('-');
 
 function makeBatchSummary(overrides: Partial<BatchSummary> = {}): BatchSummary {
   return {
@@ -151,15 +153,42 @@ function makeOutput(overrides: Partial<UnifiedDemoOutput> = {}): UnifiedDemoOutp
 
 describe('renderDemoReport', () => {
   describe('4.1 Basic render from synthetic UnifiedDemoOutput', () => {
-    it('produces a DemoReport with title, version, generated_at, and 8 sections', () => {
+    it('produces a DemoReport with title, version, generated_at, and 10 sections', () => {
       const report = renderDemoReport(makeOutput(), { now: fixedNow });
 
       expect(report.title).toBe(DEFAULT_DEMO_REPORT_TITLE);
       expect(report.renderer_version).toBe(DEMO_REPORT_RENDERER_VERSION);
       expect(report.generated_at).toBe(FIXED_NOW);
-      expect(report.sections).toHaveLength(8);
+      expect(report.sections).toHaveLength(10);
       expect(report.summary).toBeDefined();
       expect(typeof report.summary).toBe('string');
+    });
+  });
+
+  describe('4.1a Score conversion helpers', () => {
+    it('converts 0-5 scores to 0-100 with Math.round(score * 20)', () => {
+      expect(toScore100(0)).toBe(0);
+      expect(toScore100(2.49)).toBe(50);
+      expect(toScore100(3.5)).toBe(70);
+      expect(toScore100(4.24)).toBe(85);
+      expect(toScore100(5)).toBe(100);
+    });
+
+    it('returns null for missing scores', () => {
+      expect(toScore100(null)).toBeNull();
+      expect(toScore100(undefined)).toBeNull();
+    });
+
+    it('assigns score bands at the correct boundaries', () => {
+      expect(getScoreBand(0)).toBe('Poor');
+      expect(getScoreBand(49)).toBe('Poor');
+      expect(getScoreBand(50)).toBe('Okay');
+      expect(getScoreBand(69)).toBe('Okay');
+      expect(getScoreBand(70)).toBe('Good');
+      expect(getScoreBand(84)).toBe('Good');
+      expect(getScoreBand(85)).toBe('Excellent');
+      expect(getScoreBand(100)).toBe('Excellent');
+      expect(getScoreBand(null)).toBeNull();
     });
   });
 
@@ -186,10 +215,12 @@ describe('renderDemoReport', () => {
     it('sections appear in the defined fixed order', () => {
       const report = renderDemoReport(makeOutput(), { now: fixedNow });
       const expectedOrder: ReportSectionKind[] = [
-        'batch_overview',
-        'prompt_health',
+        'batch_verdict',
+        'prompt_habit_score',
+        'category_scorecard',
         'issue_patterns',
         'safety_privacy',
+        'safety_privacy_lessons',
         'model_recommendations',
         'rewrite_coaching',
         'next_actions',
@@ -198,15 +229,127 @@ describe('renderDemoReport', () => {
       const actualOrder = report.sections.map((s) => s.kind);
       expect(actualOrder).toEqual(expectedOrder);
     });
+
+    it('inserts prompt examples after issue patterns when prompt text is available', () => {
+      const promptResults: PromptResult[] = [
+        makePromptResult({
+        prompt_log_id: 'ex-001',
+        prompt_text:
+            `Use api key ${REDACTION_SECRET} and password=secret123 while keeping customer_id: acme-42 out of the prompt.`,
+          score: {
+            id: 'score-ex-001',
+            prompt_log_id: 'ex-001',
+            overall_score: 1,
+            clarity_score: 1,
+            context_score: 1,
+            constraints_score: 1,
+            output_format_score: 1,
+            capability_fit_score: 1,
+            efficiency_score: 1,
+            safety_privacy_score: 1,
+            issue_labels: ['missing_context'],
+            explanations: ['Needs more context'],
+            confidence: 'medium',
+            scoring_version: 'v1',
+            scored_at: FIXED_NOW,
+          } as PromptScore,
+        }),
+        makePromptResult({
+        prompt_log_id: 'ex-002',
+        prompt_text:
+            `Return JSON with three fields while keeping api key ${REDACTION_SECRET} and customer_id: acme-42 out of the prompt.`,
+          score: {
+            id: 'score-ex-002',
+            prompt_log_id: 'ex-002',
+            overall_score: 1,
+            clarity_score: 1,
+            context_score: 1,
+            constraints_score: 1,
+            output_format_score: 1,
+            capability_fit_score: 1,
+            efficiency_score: 1,
+            safety_privacy_score: 1,
+            issue_labels: ['missing_output_format'],
+            explanations: ['Needs format'],
+            confidence: 'medium',
+            scoring_version: 'v1',
+            scored_at: FIXED_NOW,
+          } as PromptScore,
+        }),
+      ];
+      const report = renderDemoReport(makeOutput({ prompt_results: promptResults }), { now: fixedNow });
+      const expectedOrder: ReportSectionKind[] = [
+        'batch_verdict',
+        'prompt_habit_score',
+        'category_scorecard',
+        'issue_patterns',
+        'prompt_examples',
+        'roast_of_the_batch',
+        'copy_worthy_prompt',
+        'safety_privacy',
+        'safety_privacy_lessons',
+        'model_recommendations',
+        'rewrite_coaching',
+        'next_actions',
+        'limitations',
+      ];
+      const actualOrder = report.sections.map((s) => s.kind);
+      expect(actualOrder).toEqual(expectedOrder);
+      const promptExamples = report.sections.find((s) => s.kind === 'prompt_examples');
+      expect(promptExamples?.prompt_example_cards).toHaveLength(2);
+      expect(report.sections.find((s) => s.kind === 'roast_of_the_batch')).toBeDefined();
+      expect(report.sections.find((s) => s.kind === 'copy_worthy_prompt')).toBeDefined();
+    });
+
+    it('inserts model waste before safety sections when model-fit signals exist', () => {
+      const report = renderDemoReport(
+        makeOutput({
+          batch_summary: makeBatchSummary({
+            issue_label_counts: {
+              overpowered_model: 2,
+              needs_search: 1,
+            },
+            most_common_labels: ['overpowered_model'],
+            safety_summary: {
+              prompts_with_warnings: 0,
+              severity_counts: {},
+              do_not_send_external_count: 0,
+            },
+          }),
+        }),
+        { now: fixedNow },
+      );
+
+      const expectedOrder: ReportSectionKind[] = [
+        'batch_verdict',
+        'prompt_habit_score',
+        'category_scorecard',
+        'issue_patterns',
+        'model_waste',
+        'safety_privacy',
+        'model_recommendations',
+        'rewrite_coaching',
+        'next_actions',
+        'limitations',
+      ];
+
+      expect(report.sections.map((s) => s.kind)).toEqual(expectedOrder);
+      const modelWaste = report.sections.find((s) => s.kind === 'model_waste');
+      expect(modelWaste).toBeDefined();
+      expect(modelWaste!.overkill_count).toBe(2);
+      expect(modelWaste!.underfit_count).toBe(1);
+    });
   });
 
   describe('4.4 Batch overview correctness', () => {
-    it('shows total, success %, avg score, duration from summary', () => {
+    it('shows total, success %, duration, overall score, and score band from summary', () => {
       const report = renderDemoReport(makeOutput(), { now: fixedNow });
-      const batchSection = report.sections.find((s) => s.kind === 'batch_overview')!;
+      const batchSection = report.sections.find((s) => s.kind === 'batch_verdict')!;
 
-      expect(batchSection.heading).toBe('Batch Overview');
+      expect(batchSection.heading).toBe('Batch Verdict');
       expect(batchSection.metrics).toBeDefined();
+      expect(batchSection.overall_score_100).toBe(70);
+      expect(batchSection.score_band).toBe('Good');
 
       const metrics = batchSection.metrics!;
       const metricMap = Object.fromEntries(metrics.map((m) => [m.label, m]));
@@ -215,25 +358,42 @@ describe('renderDemoReport', () => {
       expect(metricMap['Succeeded'].value).toBe(4);
       expect(metricMap['Failed'].value).toBe(1);
       expect(metricMap['Success rate'].value).toBe(80);
-      expect(metricMap['Average score'].value).toBe(3.5);
       expect(metricMap['Duration'].value).toBe(60000);
     });
   });
 
-  describe('4.5 Dimension ranking (weakest first, null last)', () => {
-    it('ranks dimensions weakest first with human-readable labels', () => {
+  describe('4.5 Prompt Habit Score and Category Scorecard', () => {
+    it('shows Prompt Habit Score in 0-100 form with a band', () => {
       const report = renderDemoReport(makeOutput(), { now: fixedNow });
-      const healthSection = report.sections.find((s) => s.kind === 'prompt_health')!;
+      const scoreSection = report.sections.find((s) => s.kind === 'prompt_habit_score')!;
 
-      expect(healthSection.items).toBeDefined();
-      const items = healthSection.items!;
-
-      // First item should be the weakest dimension (context: 2.8) with human label
-      expect(items[0]).toContain('Context & Background');
-      expect(items[0]).toContain('2.8');
+      expect(scoreSection.heading).toBe('Prompt Habit Score');
+      expect(scoreSection.overall_score_100).toBe(70);
+      expect(scoreSection.score_band).toBe('Good');
+      expect(scoreSection.summary).toContain('solid');
     });
 
-    it('places null dimensions last', () => {
+    it('renders all 7 category scores in fixed order with 0-100 values', () => {
+      const report = renderDemoReport(makeOutput(), { now: fixedNow });
+      const scorecardSection = report.sections.find((s) => s.kind === 'category_scorecard')!;
+
+      expect(scorecardSection.category_scores_100).toBeDefined();
+      expect(scorecardSection.category_scores_100).toHaveLength(7);
+      expect(scorecardSection.category_scores_100!.map((item) => item.category)).toEqual([
+        'Clarity',
+        'Context',
+        'Constraints',
+        'Output Format',
+        'Model Fit',
+        'Efficiency',
+        'Safety & Privacy',
+      ]);
+      expect(scorecardSection.category_scores_100![0].score_100).toBe(80);
+      expect(scorecardSection.category_scores_100![1].score_100).toBe(56);
+      expect(scorecardSection.category_scores_100![6].score_100).toBe(90);
+    });
+
+    it('handles null category scores safely', () => {
       const output = makeOutput({
         batch_summary: makeBatchSummary({
           dimension_averages: {
@@ -244,16 +404,14 @@ describe('renderDemoReport', () => {
         }),
       });
       const report = renderDemoReport(output, { now: fixedNow });
-      const healthSection = report.sections.find((s) => s.kind === 'prompt_health')!;
-      const items = healthSection.items!;
+      const scorecardSection = report.sections.find((s) => s.kind === 'category_scorecard')!;
+      const constraints = scorecardSection.category_scores_100!.find((item) => item.category === 'Constraints');
 
-      // Last item should be the null one (constraints) with human label
-      const lastItem = items[items.length - 1];
-      expect(lastItem).toContain('Constraints');
-      expect(lastItem).toContain('N/A');
+      expect(constraints?.score_100).toBeNull();
+      expect(constraints?.score_band).toBeNull();
     });
 
-    it('includes coaching notes for capability_fit when weak', () => {
+    it('includes coaching notes for weak categories', () => {
       const output = makeOutput({
         batch_summary: makeBatchSummary({
           dimension_averages: {
@@ -264,27 +422,10 @@ describe('renderDemoReport', () => {
         }),
       });
       const report = renderDemoReport(output, { now: fixedNow });
-      const healthSection = report.sections.find((s) => s.kind === 'prompt_health')!;
-      expect(healthSection.coaching_notes).toBeDefined();
-      expect(healthSection.coaching_notes!.length).toBeGreaterThan(0);
-      // Should contain the capability_fit coaching note
-      expect(healthSection.coaching_notes!.some((n) => n.includes('model class'))).toBe(true);
-    });
-
-    it('includes coaching notes for safety_privacy when weak', () => {
-      const output = makeOutput({
-        batch_summary: makeBatchSummary({
-          dimension_averages: {
-            safety_privacy: 2.0,
-            clarity: 4.5,
-            context: 4.0,
-          },
-        }),
-      });
-      const report = renderDemoReport(output, { now: fixedNow });
-      const healthSection = report.sections.find((s) => s.kind === 'prompt_health')!;
-      expect(healthSection.coaching_notes).toBeDefined();
-      expect(healthSection.coaching_notes!.some((n) => n.includes('safety'))).toBe(true);
+      const scorecardSection = report.sections.find((s) => s.kind === 'category_scorecard')!;
+      expect(scorecardSection.coaching_notes).toBeDefined();
+      expect(scorecardSection.coaching_notes!.length).toBeGreaterThan(0);
+      expect(scorecardSection.coaching_notes!.some((n) => n.includes('model'))).toBe(true);
     });
   });
 
@@ -301,6 +442,7 @@ describe('renderDemoReport', () => {
       });
       const report = renderDemoReport(output, { now: fixedNow });
       const issueSection = report.sections.find((s) => s.kind === 'issue_patterns')!;
+      expect(issueSection.heading).toBe('What Kept Hurting Results');
       const items = issueSection.items!;
 
       expect(items[0]).toContain('Missing context');
@@ -377,12 +519,12 @@ describe('renderDemoReport', () => {
       const safetySection = report.sections.find((s) => s.kind === 'safety_privacy')!;
       expect(safetySection.items).toBeDefined();
       const items = safetySection.items!;
-      expect(items[0]).toBe('critical: 1');
-      expect(items[1]).toBe('high: 2');
-      expect(items[2]).toBe('medium: 3');
-      expect(items[3]).toBe('low: 4');
-      expect(items[4]).toBe('unknown_a: 6');
-      expect(items[5]).toBe('unknown_b: 5');
+      expect(items[0]).toBe('Critical warnings: 1');
+      expect(items[1]).toBe('High warnings: 2');
+      expect(items[2]).toBe('Medium warnings: 3');
+      expect(items[3]).toBe('Low warnings: 4');
+      expect(items[4]).toBe('Unknown_a warnings: 6');
+      expect(items[5]).toBe('Unknown_b warnings: 5');
     });
 
     it('shows risky state with severity breakdown', () => {
@@ -399,7 +541,7 @@ describe('renderDemoReport', () => {
       const safetySection = report.sections.find((s) => s.kind === 'safety_privacy')!;
       expect(safetySection.summary).toContain('3');
       expect(safetySection.items).toBeDefined();
-      expect(safetySection.items!.some((i) => i.includes('high'))).toBe(true);
+      expect(safetySection.items!.some((i) => i.includes('High warnings'))).toBe(true);
       expect(safetySection.metrics!.some((m) => m.label === 'Do not send externally' && m.value === 1)).toBe(true);
     });
 
@@ -556,6 +698,7 @@ describe('renderDemoReport', () => {
       });
       const report = renderDemoReport(output, { now: fixedNow });
       const actionsSection = report.sections.find((s) => s.kind === 'next_actions')!;
+      expect(actionsSection.heading).toBe('Top Fixes Checklist');
 
       expect(actionsSection.items).toBeDefined();
       // First action should have Safety: prefix (no brackets)
@@ -638,7 +781,7 @@ describe('renderDemoReport', () => {
       const report = renderDemoReport(output, { now: fixedNow });
 
       expect(report.title).toBe(DEFAULT_DEMO_REPORT_TITLE);
-      expect(report.sections).toHaveLength(8);
+      expect(report.sections).toHaveLength(9);
       expect(report.summary).toContain('No prompts');
     });
   });
@@ -649,8 +792,8 @@ describe('renderDemoReport', () => {
       const report = renderDemoReport(output, { now: fixedNow });
 
       expect(report.summary).toContain('issue');
-      // Still produces 8 sections
-      expect(report.sections).toHaveLength(8);
+      // Still produces all sections
+      expect(report.sections).toHaveLength(10);
     });
   });
 
@@ -812,7 +955,7 @@ describe('renderDemoReport', () => {
 
         const report = renderDemoReport(partial, { now: fixedNow });
 
-        expect(report.sections).toHaveLength(8);
+        expect(report.sections).toHaveLength(9);
         expect(report.summary).toContain('No prompts');
         expect(report.summary).not.toContain('undefined');
         expect(report.summary).not.toContain('Error');

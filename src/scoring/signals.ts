@@ -87,7 +87,7 @@ const VAGUE_PHRASES = [
 
 const VAGUE_TASK_MAX_LENGTH = 40;
 
-/** Task intent capability keyword groups (order irrelevant; deduped by Set). */
+/** Task-intent capability keyword groups (order irrelevant; deduped by Set). */
 const CAPABILITY_KEYWORDS: ReadonlyArray<{
   capability: CapabilityClass;
   patterns: readonly string[];
@@ -185,7 +185,7 @@ function containsAny(text: string, markers: readonly string[]): boolean {
   return markers.some((marker) => text.includes(marker));
 }
 
-/** Infer task intent capability classes from lowered prompt text + tags. */
+/** Infer task-intent capability classes from lowered prompt text + tags. */
 function inferRequiredCapabilities(
   lowered: string,
   tags: readonly string[],

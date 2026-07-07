@@ -8,6 +8,7 @@
     "build:cli": "tsc -p tsconfig.cli.json",
     "demo": "npm run build:cli && node dist/cli/demo-runner.js",
     "demo:save": "npm run build:cli && node dist/cli/demo-runner.js --save",
+    "dashboard:ui": "npm run build:cli && node dist/cli/dashboard-ui.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },

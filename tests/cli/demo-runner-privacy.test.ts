@@ -18,6 +18,8 @@ function makeWriters(overrides: Partial<CliWriters> = {}): CliWriters & { stdout
     writeFile: (filePath: string, content: string) => writtenFiles.push({ path: filePath, content }),
     exists: () => false,
     isDirectoryWritable: () => true,
+    isDirectory: () => true,
+    mkdir: () => {},
     now: () => new Date('2026-07-05T01:00:00.000Z'),
     cwd: () => '/project',
     stdoutCalls,
@@ -29,7 +31,7 @@ function makeWriters(overrides: Partial<CliWriters> = {}): CliWriters & { stdout
 
 function makeFakeDeps(overrides: Partial<CliDependencies> = {}): CliDependencies & { writers: ReturnType<typeof makeWriters> } {
   const writers = makeWriters();
-  const base = {
+  const base: CliDependencies & { writers: ReturnType<typeof makeWriters> } = {
     runPipeline: async () => ({
       prompt_results: [],
       batch_summary: {
@@ -51,10 +53,20 @@ function makeFakeDeps(overrides: Partial<CliDependencies> = {}): CliDependencies
       generated_at: '2026-01-01', renderer_version: 'test',
       markdown: '# Safe Report\n\nNo sensitive data.\n',
     }),
+    buildBundle: () => ({
+      generated_at: '2026-01-01',
+      builder_version: 'exports-v1',
+      artifacts: [
+        { kind: 'coaching_report' as const, filename: 'coaching-report.md' as const, content: '# Safe Report\n', media_type: 'text/markdown' as const },
+        { kind: 'memory' as const, filename: 'memory.md' as const, content: '# Safe Memory\n', media_type: 'text/markdown' as const },
+        { kind: 'workflow' as const, filename: 'workflow.md' as const, content: '# Safe Workflow\n', media_type: 'text/markdown' as const },
+      ],
+    }),
     writers,
   };
   if (overrides.runPipeline) base.runPipeline = overrides.runPipeline as typeof base.runPipeline;
   if (overrides.renderReport) base.renderReport = overrides.renderReport as typeof base.renderReport;
+  if (overrides.buildBundle) base.buildBundle = overrides.buildBundle as typeof base.buildBundle;
   if (overrides.writers) base.writers = overrides.writers as typeof base.writers;
   return base;
 }
@@ -71,9 +83,10 @@ const BANNED_FIELD_SENTINELS = [
   'generated_text',
   'template_body',
 ];
+const OPENAI_SECRET_SENTINEL = ['sk', 'test-SECRET123'].join('-');
 
 const SECRET_SENTINELS = [
-  'FAKE_API_KEY_PLACEHOLDER_DO_NOT_USE',
+  OPENAI_SECRET_SENTINEL,
   'ghp_SECRET123',
   'AKIASECRET123',
   'password=SECRET123',
@@ -130,6 +143,7 @@ describe('8.1 Privacy sentinel tests', () => {
       const deps: CliDependencies = {
         runPipeline: makeFakeDeps().runPipeline,
         renderReport: makeFakeDeps().renderReport,
+        buildBundle: makeFakeDeps().buildBundle,
         writers,
       };
       await runCli(['--save'], deps);
@@ -155,14 +169,14 @@ describe('8.1 Privacy sentinel tests', () => {
           total_duration_ms: 0, input_source: 'test',
         },
         // Simulate sensitive fields that might exist on raw pipeline output
-        _internal_prompt_text: 'FAKE_API_KEY_PLACEHOLDER_DO_NOT_USE',
+        _internal_prompt_text: OPENAI_SECRET_SENTINEL,
         _internal_secret: 'ghp_SECRET123',
       } as any),
     });
     const code = await runCli([], deps);
     expect(code).toBe(0);
     const allOutput = deps.writers.stdoutCalls.join('') + deps.writers.stderrCalls.join('');
-    expect(allOutput).not.toContain('FAKE_API_KEY_PLACEHOLDER_DO_NOT_USE');
+    expect(allOutput).not.toContain(OPENAI_SECRET_SENTINEL);
     expect(allOutput).not.toContain('ghp_SECRET123');
   });
 
@@ -237,6 +251,7 @@ describe('8.2 Error hardening tests', () => {
     const deps: CliDependencies = {
       runPipeline: makeFakeDeps().runPipeline,
       renderReport: makeFakeDeps().renderReport,
+      buildBundle: makeFakeDeps().buildBundle,
       writers,
     };
     const code = await runCli(['--out', '/secret/internal/report.md'], deps);
@@ -274,6 +289,7 @@ describe('8.2 Error hardening tests', () => {
     const deps: CliDependencies = {
       runPipeline: makeFakeDeps().runPipeline,
       renderReport: makeFakeDeps().renderReport,
+      buildBundle: makeFakeDeps().buildBundle,
       writers,
     };
     const code = await runCli(['--save'], deps);
@@ -305,7 +321,7 @@ describe('8.3 Property: privacy preservation and no network', () => {
     { name: 'renderer', makeDeps: () => makeFakeDeps({ renderReport: () => { throw new Error('LEAK_TEST'); } }) },
     { name: 'writer', makeDeps: () => {
       const writers = makeWriters({ writeFile: () => { throw new Error('LEAK_TEST'); } });
-      return { runPipeline: makeFakeDeps().runPipeline, renderReport: makeFakeDeps().renderReport, writers } as CliDependencies & { writers: ReturnType<typeof makeWriters> };
+      return { runPipeline: makeFakeDeps().runPipeline, renderReport: makeFakeDeps().renderReport, buildBundle: makeFakeDeps().buildBundle, writers } as CliDependencies & { writers: ReturnType<typeof makeWriters> };
     }},
   ];
 

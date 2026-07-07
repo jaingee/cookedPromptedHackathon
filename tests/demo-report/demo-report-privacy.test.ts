@@ -8,6 +8,7 @@ import type { RewriteSuggestion, TemplateSuggestion } from '../../src/rewrite-te
 
 const FIXED_NOW = '2026-07-04T12:00:00.000Z';
 const fixedNow = () => FIXED_NOW;
+const REDACTION_SECRET = ['sk', 'test1234567890'].join('-');
 
 const SENTINEL_PROMPT_TEXT_DO_NOT_LEAK = 'SENTINEL_PROMPT_TEXT_DO_NOT_LEAK_xK9mZ2pQ';
 const SENTINEL_SECRET_VALUE_DO_NOT_LEAK = 'SENTINEL_SECRET_VALUE_DO_NOT_LEAK_Qw3rTy9X';
@@ -20,6 +21,7 @@ const BANNED_FIELD_KEYS = [
   'model_answer',
   'output_text',
   'generated_text',
+  'template_body',
 ];
 
 /**
@@ -75,7 +77,6 @@ function makePromptResult(overrides: Partial<PromptResult> = {}): PromptResult {
   return {
     prompt_log_id: 'priv-prompt-001',
     do_not_send_external: false,
-    prompt_text: SENTINEL_PROMPT_TEXT_DO_NOT_LEAK,
     score: {
       id: 'score-priv-001',
       prompt_log_id: 'priv-prompt-001',
@@ -219,6 +220,72 @@ describe('Demo Report Privacy Verification', () => {
       expect(serialized).not.toContain(SENTINEL_SECRET_VALUE_DO_NOT_LEAK);
     });
 
+    it('prompt examples stay redacted even when prompt text is available', () => {
+      const report = renderDemoReport(
+        makeOutput({
+          prompt_results: [
+            makePromptResult({
+              prompt_log_id: 'priv-example-001',
+              prompt_text:
+                `Use api key ${REDACTION_SECRET}, password=secret123, and customer_id: acme-42 for alice@example.com.`,
+            }),
+          ],
+        }),
+        { now: fixedNow, include_markdown: true },
+      );
+
+      const exampleSection = report.sections.find((entry) => entry.kind === 'prompt_examples');
+      expect(exampleSection).toBeDefined();
+      expect(exampleSection!.prompt_example_cards).toHaveLength(1);
+      expect(exampleSection!.prompt_example_cards![0].prompt_excerpt).toBe(
+        '[Prompt excerpt withheld after redaction]',
+      );
+      expect(exampleSection!.prompt_example_cards![0].prompt_excerpt).not.toContain(REDACTION_SECRET);
+      expect(exampleSection!.prompt_example_cards![0].prompt_excerpt).not.toContain('secret123');
+      expect(exampleSection!.prompt_example_cards![0].prompt_excerpt).not.toContain('acme-42');
+      expect(exampleSection!.prompt_example_cards![0].prompt_excerpt).not.toContain('alice@example.com');
+      expect(report.markdown).toContain('## Prompt Examples');
+      expect(report.markdown).toContain('[Prompt excerpt withheld after redaction]');
+      expect(report.markdown).not.toContain(REDACTION_SECRET);
+      expect(report.markdown).not.toContain('secret123');
+    });
+
+    it('safety lessons use placeholders, not raw sensitive values', () => {
+      const report = renderDemoReport(
+        makeOutput({
+          batch_summary: makeBatchSummary({
+            safety_summary: {
+              prompts_with_warnings: 2,
+              severity_counts: { critical: 1 },
+              do_not_send_external_count: 1,
+            },
+          }),
+          prompt_results: [
+            makePromptResult({
+              prompt_log_id: 'priv-lesson-001',
+              prompt_text:
+                `Use api key ${REDACTION_SECRET}, password=secret123, and host service.internal.local for customer acme-42 and alice@example.com.`,
+            }),
+          ],
+        }),
+        { now: fixedNow, include_markdown: true },
+      );
+
+      const lessonSection = report.sections.find((entry) => entry.kind === 'safety_privacy_lessons');
+      expect(lessonSection).toBeDefined();
+      expect(lessonSection!.placeholder_examples).toContain('[REDACTED_SECRET] x1');
+      expect(lessonSection!.placeholder_examples).toContain('[REDACTED_PASSWORD] x1');
+      expect(lessonSection!.placeholder_examples).toContain('[REDACTED_INTERNAL_HOST] x1');
+      expect(JSON.stringify(lessonSection)).not.toContain(REDACTION_SECRET);
+      expect(JSON.stringify(lessonSection)).not.toContain('secret123');
+      expect(JSON.stringify(lessonSection)).not.toContain('service.internal.local');
+      expect(JSON.stringify(lessonSection)).not.toContain('acme-42');
+      expect(report.markdown).toContain('## Safety & Privacy Lessons');
+      expect(report.markdown).toContain('[REDACTED_SECRET]');
+      expect(report.markdown).not.toContain(REDACTION_SECRET);
+      expect(report.markdown).not.toContain('secret123');
+    });
+
     it('secret sentinel in error field does not leak', () => {
       const output = makeOutput({ error: SENTINEL_SECRET_VALUE_DO_NOT_LEAK });
       const report = renderDemoReport(output, { now: fixedNow });
@@ -226,7 +293,7 @@ describe('Demo Report Privacy Verification', () => {
       expect(serialized).not.toContain(SENTINEL_SECRET_VALUE_DO_NOT_LEAK);
     });
 
-    it('prompt_text sentinel not in report even when multiple results contain it', () => {
+    it('prompt_text sentinel can appear in local prompt examples', () => {
       const results = [
         makePromptResult({ prompt_log_id: 'priv-001', prompt_text: SENTINEL_PROMPT_TEXT_DO_NOT_LEAK }),
         makePromptResult({ prompt_log_id: 'priv-002', prompt_text: SENTINEL_PROMPT_TEXT_DO_NOT_LEAK }),
@@ -235,7 +302,7 @@ describe('Demo Report Privacy Verification', () => {
       const output = makeOutput({ prompt_results: results });
       const report = renderDemoReport(output, { now: fixedNow });
       const serialized = JSON.stringify(report);
-      expect(serialized).not.toContain(SENTINEL_PROMPT_TEXT_DO_NOT_LEAK);
+      expect(serialized).toContain(SENTINEL_PROMPT_TEXT_DO_NOT_LEAK);
     });
 
     it('safety warning message sentinel does not leak into report', () => {

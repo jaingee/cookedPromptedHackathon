@@ -11,10 +11,12 @@ import {
   validateOutputDirectory,
   formatRelativePathForConfirmation,
   writeOutput,
+  writeExportOutput,
   runCli,
   createDefaultWriters,
 } from '../../src/cli/demo-runner.js';
 import type { CliOptions, CliWriters, CliDependencies } from '../../src/cli/demo-runner.js';
+import type { DemoInput, PipelineOptions } from '../../src/integration-demo/types.js';
 
 describe('parseCliArgs', () => {
   it('default no args returns demo/stdout/help false/include_prompt_text false', () => {
@@ -61,6 +63,12 @@ describe('parseCliArgs', () => {
     const opts = parseCliArgs(['--save']);
     expect(opts.output_mode).toBe('file');
     expect(opts.output_path).toBe('./cooked-report.md');
+  });
+
+  it('--export ./bundle sets export mode and export path', () => {
+    const opts = parseCliArgs(['--export', './bundle']);
+    expect(opts.output_mode).toBe('export');
+    expect(opts.export_path).toBe('./bundle');
   });
 
   it('both --save and --out ./custom.md results in ./custom.md', () => {
@@ -111,6 +119,25 @@ describe('parseCliArgs', () => {
     } catch (e) {
       expect((e as CliError).category).toBe('invalid_args');
     }
+  });
+
+  it('missing --export value throws categorized invalid_args', () => {
+    expect(() => parseCliArgs(['--export'])).toThrow(CliError);
+    try {
+      parseCliArgs(['--export']);
+    } catch (e) {
+      expect((e as CliError).category).toBe('invalid_args');
+    }
+  });
+
+  it('--export cannot be combined with --save', () => {
+    expect(() => parseCliArgs(['--export', './bundle', '--save'])).toThrow(CliError);
+    expect(() => parseCliArgs(['--save', '--export', './bundle'])).toThrow(CliError);
+  });
+
+  it('--export cannot be combined with --out', () => {
+    expect(() => parseCliArgs(['--export', './bundle', '--out', './report.md'])).toThrow(CliError);
+    expect(() => parseCliArgs(['--out', './report.md', '--export', './bundle'])).toThrow(CliError);
   });
 
   it('positional arg throws categorized invalid_args', () => {
@@ -269,6 +296,7 @@ describe('formatUsage', () => {
     expect(usage).toContain('--file');
     expect(usage).toContain('--out');
     expect(usage).toContain('--save');
+    expect(usage).toContain('--export');
     expect(usage).toContain('--include-prompt-text');
     expect(usage).toContain('--help');
     expect(usage).toContain('-h');
@@ -392,6 +420,8 @@ function makeWriters(overrides: Partial<CliWriters> = {}): CliWriters & { stdout
     writeFile: (filePath: string, content: string) => writtenFiles.push({ path: filePath, content }),
     exists: () => false,
     isDirectoryWritable: () => true,
+    isDirectory: () => true,
+    mkdir: () => {},
     now: () => new Date('2026-07-05T01:00:00.000Z'),
     cwd: () => '/project',
     stdoutCalls,
@@ -680,13 +710,98 @@ describe('writeOutput', () => {
   });
 });
 
+describe('writeExportOutput', () => {
+  const bundle = {
+    generated_at: '2026-01-01',
+    builder_version: 'exports-v1',
+    artifacts: [
+      {
+        kind: 'coaching_report' as const,
+        filename: 'coaching-report.md' as const,
+        content: '# Report',
+        media_type: 'text/markdown' as const,
+      },
+      {
+        kind: 'memory' as const,
+        filename: 'memory.md' as const,
+        content: '# Memory',
+        media_type: 'text/markdown' as const,
+      },
+      {
+        kind: 'workflow' as const,
+        filename: 'workflow.md' as const,
+        content: '# Workflow',
+        media_type: 'text/markdown' as const,
+      },
+    ],
+  };
+
+  it('writes the export bundle files and confirms the directory on stderr', () => {
+    const mkdirCalls: string[] = [];
+    const w = makeWriters({
+      mkdir: (dirPath: string) => { mkdirCalls.push(dirPath); },
+    });
+    const opts: CliOptions = {
+      mode: 'demo',
+      output_mode: 'export',
+      export_path: './bundle',
+      include_prompt_text: false,
+      help: false,
+    };
+
+    const result = writeExportOutput(bundle, opts, w);
+
+    expect(result).toBe('bundle');
+    expect(mkdirCalls).toEqual(['./bundle']);
+    expect(w.writtenFiles).toHaveLength(3);
+    expect(w.writtenFiles[0].path).toContain('bundle');
+    expect(w.stderrCalls.join('')).toContain('Export bundle written to bundle');
+  });
+
+  it('uses a collision-safe sibling directory when artifact files already exist', () => {
+    const mkdirCalls: string[] = [];
+    const w = makeWriters({
+      exists: (targetPath) =>
+        targetPath === './bundle' ||
+        targetPath === 'bundle\\coaching-report.md' ||
+        targetPath === './bundle\\coaching-report.md',
+      mkdir: (dirPath: string) => { mkdirCalls.push(dirPath); },
+    });
+    const opts: CliOptions = {
+      mode: 'demo',
+      output_mode: 'export',
+      export_path: './bundle',
+      include_prompt_text: false,
+      help: false,
+    };
+
+    const result = writeExportOutput(bundle, opts, w);
+
+    expect(result).toBe('bundle-20260705-010000');
+    expect(mkdirCalls).toEqual(['./bundle-20260705-010000']);
+    expect(w.stderrCalls.join('')).toContain('Export bundle written to bundle-20260705-010000');
+  });
+
+  it('throws categorized invalid_args when export_path is missing', () => {
+    const w = makeWriters();
+    const opts: CliOptions = {
+      mode: 'demo',
+      output_mode: 'export',
+      include_prompt_text: false,
+      help: false,
+    };
+
+    expect(() => writeExportOutput(bundle, opts, w)).toThrow(CliError);
+  });
+});
+
 
 // --- Wave 3: Pipeline and renderer integration tests ---
 
 function makeFakeDeps(overrides: Partial<CliDependencies> = {}): CliDependencies & { writers: ReturnType<typeof makeWriters> } {
   const writers = makeWriters();
-  const base = {
-    runPipeline: async () => ({
+  const base: CliDependencies & { writers: ReturnType<typeof makeWriters> } = {
+    runPipeline: async (_input: DemoInput, _options?: PipelineOptions) => ({
       prompt_results: [],
       batch_summary: {
         total_prompts: 0,
@@ -716,10 +831,20 @@ function makeFakeDeps(overrides: Partial<CliDependencies> = {}): CliDependencies
       renderer_version: 'test',
       markdown: '# Test Report\n\nContent here.\n',
     }),
+    buildBundle: () => ({
+      generated_at: '2026-01-01',
+      builder_version: 'exports-v1',
+      artifacts: [
+        { kind: 'coaching_report' as const, filename: 'coaching-report.md' as const, content: '# Test Report\n', media_type: 'text/markdown' as const },
+        { kind: 'memory' as const, filename: 'memory.md' as const, content: '# Memory\n', media_type: 'text/markdown' as const },
+        { kind: 'workflow' as const, filename: 'workflow.md' as const, content: '# Workflow\n', media_type: 'text/markdown' as const },
+      ],
+    }),
     writers,
   };
   if (overrides.runPipeline) base.runPipeline = overrides.runPipeline as typeof base.runPipeline;
   if (overrides.renderReport) base.renderReport = overrides.renderReport as typeof base.renderReport;
+  if (overrides.buildBundle) base.buildBundle = overrides.buildBundle as typeof base.buildBundle;
   return base;
 }
 
@@ -759,7 +884,7 @@ describe('runCli (Wave 3 integration)', () => {
       const deps = makeFakeDeps({ runPipeline: pipelineSpy });
       const code = await runCli([], deps);
       expect(code).toBe(0);
-      expect(pipelineSpy).toHaveBeenCalledWith({ mode: 'demo' });
+      expect(pipelineSpy).toHaveBeenCalledWith({ mode: 'demo' }, { include_prompt_text: true });
       expect(deps.writers.stdoutCalls.join('')).toContain('# Test Report');
     });
   });
@@ -774,7 +899,10 @@ describe('runCli (Wave 3 integration)', () => {
       const deps = makeFakeDeps({ runPipeline: pipelineSpy });
       const code = await runCli(['--file', './p.jsonl'], deps);
       expect(code).toBe(0);
-      expect(pipelineSpy).toHaveBeenCalledWith({ mode: 'file', file_path: './p.jsonl', source_type: 'jsonl' });
+      expect(pipelineSpy).toHaveBeenCalledWith(
+        { mode: 'file', file_path: './p.jsonl', source_type: 'jsonl' },
+        { include_prompt_text: true },
+      );
     });
 
     it('--file ./p.csv calls pipeline with correct input', async () => {
@@ -786,7 +914,10 @@ describe('runCli (Wave 3 integration)', () => {
       const deps = makeFakeDeps({ runPipeline: pipelineSpy });
       const code = await runCli(['--file', './p.csv'], deps);
       expect(code).toBe(0);
-      expect(pipelineSpy).toHaveBeenCalledWith({ mode: 'file', file_path: './p.csv', source_type: 'csv' });
+      expect(pipelineSpy).toHaveBeenCalledWith(
+        { mode: 'file', file_path: './p.csv', source_type: 'csv' },
+        { include_prompt_text: true },
+      );
     });
   });
 
@@ -812,6 +943,42 @@ describe('runCli (Wave 3 integration)', () => {
       await runCli(['--save'], deps);
       const stderr = deps.writers.stderrCalls.join('');
       expect(stderr).toContain('Report written to');
+    });
+  });
+
+  describe('export mode', () => {
+    it('--export writes three export files through writers', async () => {
+      const mkdirCalls: string[] = [];
+      const deps = makeFakeDeps();
+      deps.writers.mkdir = (dirPath: string) => { mkdirCalls.push(dirPath); };
+
+      const code = await runCli(['--export', './bundle'], deps);
+
+      expect(code).toBe(0);
+      expect(mkdirCalls).toEqual(['./bundle']);
+      expect(deps.writers.writtenFiles).toHaveLength(3);
+      expect(deps.writers.writtenFiles.map((file) => file.path)).toEqual([
+        'bundle\\coaching-report.md',
+        'bundle\\memory.md',
+        'bundle\\workflow.md',
+      ]);
+      expect(deps.writers.stderrCalls.join('')).toContain('Export bundle written to bundle');
+    });
+
+    it('--export does not print report markdown to stdout', async () => {
+      const deps = makeFakeDeps();
+      await runCli(['--export', './bundle'], deps);
+
+      expect(deps.writers.stdoutCalls).toHaveLength(0);
+    });
+
+    it('--export does not call the report renderer', async () => {
+      const renderSpy = vi.fn();
+      const deps = makeFakeDeps({ renderReport: renderSpy as any });
+
+      await runCli(['--export', './bundle'], deps);
+
+      expect(renderSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -880,6 +1047,7 @@ describe('runCli (Wave 3 integration)', () => {
       const deps: CliDependencies = {
         runPipeline: makeFakeDeps().runPipeline,
         renderReport: makeFakeDeps().renderReport,
+        buildBundle: makeFakeDeps().buildBundle,
         writers,
       };
       const code = await runCli(['--save'], deps);
@@ -893,6 +1061,7 @@ describe('runCli (Wave 3 integration)', () => {
       const deps: CliDependencies = {
         runPipeline: makeFakeDeps().runPipeline,
         renderReport: makeFakeDeps().renderReport,
+        buildBundle: makeFakeDeps().buildBundle,
         writers,
       };
       const code = await runCli(['--save'], deps);
@@ -910,6 +1079,19 @@ describe('runCli (Wave 3 integration)', () => {
       expect(stderr).not.toContain('SENSITIVE_INTERNAL');
       expect(stderr).not.toContain('/path/to/secret.ts');
       expect(stderr).not.toContain('42');
+    });
+
+    it('export path conflicts return 1 with file write error and no raw path', async () => {
+      const deps = makeFakeDeps();
+      deps.writers.exists = (targetPath: string) => targetPath === './bundle';
+      deps.writers.isDirectory = () => false;
+
+      const code = await runCli(['--export', './bundle'], deps);
+
+      expect(code).toBe(1);
+      const stderr = deps.writers.stderrCalls.join('');
+      expect(stderr).toBe('File write failed.\n');
+      expect(stderr).not.toContain('./bundle');
     });
   });
 

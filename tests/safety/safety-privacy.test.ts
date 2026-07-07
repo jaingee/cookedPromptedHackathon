@@ -137,16 +137,16 @@ describe('Safety Privacy — exported SAFETY_RULES are value-free', () => {
     'location_hint', 'recommendation', 'matches',
   ]);
 
-  const SECRET_PATTERNS = [
-    'BEGIN PRIVATE KEY',
-    'api_key',
-    'password',
-    'secret_key',
-    'access_token',
-    'bearer',
-    'AKIA',
-    'provider_key_prefix',
-  ];
+const SECRET_PATTERNS = [
+  'BEGIN PRIVATE KEY',
+  'api_key',
+  'password',
+  'secret_key',
+  'access_token',
+  'bearer',
+  'AKIA',
+  ['sk', ''].join('-'),
+];
 
   it('each rule has only expected keys', () => {
     for (const rule of SAFETY_RULES) {

@@ -12,6 +12,9 @@ export type {
   ReportMetric,
   ReportSection,
   CoachingAction,
+  ScoreBand,
+  CategoryScore100,
+  PromptExampleCard,
   DemoReport,
 } from './types.js';
 
@@ -22,3 +25,16 @@ export {
 } from './report-renderer.js';
 
 export { renderReportMarkdown } from './markdown-renderer.js';
+
+export type {
+  RedactionPlaceholder,
+  RedactionResult,
+  RedactedExcerptOptions,
+  RedactedExcerptResult,
+} from './redaction.js';
+export {
+  PROMPT_EXCERPT_WITHHELD,
+  REDACTION_PLACEHOLDERS,
+  redactPromptForReport,
+  buildRedactedExcerpt,
+} from './redaction.js';

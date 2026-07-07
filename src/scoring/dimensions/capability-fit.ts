@@ -1,7 +1,7 @@
 /**
  * cookedPrompts — Capability-Fit Dimension Scorer
  *
- * Deterministic, pure. Compares inferred task intent capabilities against
+ * Deterministic, pure. Compares inferred task-intent capabilities against
  * available model capability metadata (vendor-neutral). Missing metadata is
  * neutral, not a failure. No provider/model names are referenced here.
  */

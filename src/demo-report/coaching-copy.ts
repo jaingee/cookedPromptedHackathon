@@ -74,7 +74,7 @@ export const DIMENSION_DISPLAY_LABELS: Record<string, string> = {
   context: 'Context & Background',
   constraints: 'Constraints',
   output_format: 'Output Format',
-  capability_fit: 'Capability Fit',
+  capability_fit: 'Model Fit',
   efficiency: 'Efficiency',
   safety_privacy: 'Safety & Privacy',
 };

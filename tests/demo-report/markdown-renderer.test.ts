@@ -13,6 +13,7 @@ import type { RewriteSuggestion, TemplateSuggestion } from '../../src/rewrite-te
 
 const FIXED_NOW = '2026-07-04T12:00:00.000Z';
 const fixedNow = () => FIXED_NOW;
+const REDACTION_SECRET = ['sk', 'test1234567890'].join('-');
 
 function makeBatchSummary(overrides: Partial<BatchSummary> = {}): BatchSummary {
   return {
@@ -87,23 +88,189 @@ describe('renderReportMarkdown', () => {
     expect(md.startsWith(`# ${DEFAULT_DEMO_REPORT_TITLE}`)).toBe(true);
   });
 
-  it('has h2 section headings for all 8 sections', () => {
+  it('has h2 section headings for all 9 sections', () => {
     const report = renderDemoReport(makeOutput(), { now: fixedNow });
     const md = report.markdown!;
 
     const h2Matches = md.match(/^## .+$/gm);
     expect(h2Matches).not.toBeNull();
-    expect(h2Matches!.length).toBe(8);
+    expect(h2Matches!.length).toBe(9);
 
     // Verify expected headings are present
-    expect(md).toContain('## Batch Overview');
-    expect(md).toContain('## Prompt Health');
-    expect(md).toContain('## Issue Patterns');
+    expect(md).toContain('## Batch Verdict');
+    expect(md).toContain('## Prompt Habit Score');
+    expect(md).toContain('## Category Scorecard');
+    expect(md).toContain('## What Kept Hurting Results');
     expect(md).toContain('## Safety & Privacy');
     expect(md).toContain('## Model Recommendations');
     expect(md).toContain('## Rewrite & Template Coaching');
-    expect(md).toContain('## Next Actions');
+    expect(md).toContain('## Top Fixes Checklist');
     expect(md).toContain('## Limitations');
+  });
+
+  it('renders score and category scorecard lines as markdown bullets, not raw JSON', () => {
+    const report = renderDemoReport(makeOutput(), { now: fixedNow });
+    const md = report.markdown!;
+
+    expect(md).toContain('- **Score**: 76 / 100');
+    expect(md).toContain('- **Band**: Good');
+    expect(md).toContain('- **Clarity**: 80 / 100 (Good)');
+    expect(md).toContain('- **Context**: 70 / 100 (Good)');
+  });
+
+  it('renders prompt example cards as readable markdown with redacted excerpts', () => {
+    const prompt_results: PromptResult[] = [
+      makePromptResult({
+        prompt_log_id: 'md-ex-001',
+        prompt_text:
+          `Use api key ${REDACTION_SECRET} and password=secret123 while keeping customer_id: acme-42 and email alice@example.com out of the prompt.`,
+        score: {
+          id: 'score-md-ex-001',
+          prompt_log_id: 'md-ex-001',
+          overall_score: 1,
+          clarity_score: 1,
+          context_score: 1,
+          constraints_score: 1,
+          output_format_score: 1,
+          capability_fit_score: 1,
+          efficiency_score: 1,
+          safety_privacy_score: 1,
+          issue_labels: ['missing_context'],
+          explanations: ['Needs more context'],
+          confidence: 'medium',
+          scoring_version: 'v1',
+          scored_at: FIXED_NOW,
+        } as PromptScore,
+      }),
+      makePromptResult({
+        prompt_log_id: 'md-ex-002',
+        prompt_text: 'Return JSON with three fields.',
+        score: {
+          id: 'score-md-ex-002',
+          prompt_log_id: 'md-ex-002',
+          overall_score: 1,
+          clarity_score: 1,
+          context_score: 1,
+          constraints_score: 1,
+          output_format_score: 1,
+          capability_fit_score: 1,
+          efficiency_score: 1,
+          safety_privacy_score: 1,
+          issue_labels: ['missing_output_format'],
+          explanations: ['Needs format'],
+          confidence: 'medium',
+          scoring_version: 'v1',
+          scored_at: FIXED_NOW,
+        } as PromptScore,
+      }),
+    ];
+    const report = renderDemoReport(makeOutput({ prompt_results }), { now: fixedNow });
+    const md = report.markdown!;
+
+    expect(md).toContain('## Prompt Examples');
+    expect(md).toContain('### Example 1 — Missing context');
+    expect(md).toContain('**Original prompt excerpt**');
+    expect(md).toContain('```text');
+    expect(md).toContain('[REDACTED_SECRET]');
+    expect(md).toContain('[REDACTED_PASSWORD]');
+    expect(md).toContain('**A stronger version**');
+    expect(md).toContain('**Why this works**');
+    expect(md).not.toContain(REDACTION_SECRET);
+    expect(md).not.toContain('secret123');
+  });
+
+  it('renders roast and copy-worthy coaching sections in markdown', () => {
+    const prompt_results: PromptResult[] = [
+      makePromptResult({
+        prompt_log_id: 'md-roast-001',
+        prompt_text: 'Explain what this feature does.',
+        score: {
+          id: 'score-md-roast-001',
+          prompt_log_id: 'md-roast-001',
+          overall_score: 1,
+          clarity_score: 1,
+          context_score: 1,
+          constraints_score: 1,
+          output_format_score: 1,
+          capability_fit_score: 1,
+          efficiency_score: 1,
+          safety_privacy_score: 1,
+          issue_labels: ['missing_context'],
+          explanations: ['Needs context'],
+          confidence: 'medium',
+          scoring_version: 'v1',
+          scored_at: FIXED_NOW,
+        } as PromptScore,
+      }),
+      makePromptResult({
+        prompt_log_id: 'md-copy-001',
+        prompt_text: 'Write a concise three-bullet summary with a title and next steps.',
+        score: {
+          id: 'score-md-copy-001',
+          prompt_log_id: 'md-copy-001',
+          overall_score: 5,
+          clarity_score: 5,
+          context_score: 5,
+          constraints_score: 5,
+          output_format_score: 5,
+          capability_fit_score: 5,
+          efficiency_score: 5,
+          safety_privacy_score: 5,
+          issue_labels: [],
+          explanations: [],
+          confidence: 'high',
+          scoring_version: 'v1',
+          scored_at: FIXED_NOW,
+        } as PromptScore,
+      }),
+    ];
+    const report = renderDemoReport(makeOutput({ prompt_results }), { now: fixedNow });
+    const md = report.markdown!;
+
+    expect(md).toContain('## Roast of the Batch');
+    expect(md).toContain('## One Good Prompt Worth Copying');
+    expect(md).toContain('> This prompt showed up wearing a name tag and no instructions.');
+    expect(md).toContain('**Why this one hurt**');
+    expect(md).toContain('**Pattern to copy**');
+    expect(md).toContain('Task + context + constraints + output format');
+  });
+
+  it('renders model waste and safety lessons sections in markdown', () => {
+    const prompt_results: PromptResult[] = [
+      makePromptResult({
+        prompt_log_id: 'md-safety-001',
+        prompt_text:
+          `Use api key ${REDACTION_SECRET} and password=secret123 while keeping host service.internal.local and customer_id acme-42 out of the prompt.`,
+      }),
+    ];
+    const report = renderDemoReport(
+      makeOutput({
+        prompt_results,
+        batch_summary: makeBatchSummary({
+          issue_label_counts: {
+            overpowered_model: 2,
+            needs_search: 1,
+          },
+          safety_summary: {
+            prompts_with_warnings: 2,
+            severity_counts: { critical: 1, high: 1 },
+            do_not_send_external_count: 1,
+          },
+          model_class_distribution: { frontier_reasoning: 3, balanced_general: 1 },
+        }),
+      }),
+      { now: fixedNow },
+    );
+    const md = report.markdown!;
+
+    expect(md).toContain('## Model Waste / Overkill');
+    expect(md).toContain('## Safety & Privacy Lessons');
+    expect(md).toContain('- **Overkill**: 2');
+    expect(md).toContain('- **Underfit**: 1');
+    expect(md).toContain('[REDACTED_SECRET]');
+    expect(md).toContain('[REDACTED_INTERNAL_HOST]');
+    expect(md).not.toContain(REDACTION_SECRET);
+    expect(md).not.toContain('secret123');
   });
 
   it('does not contain raw JSON objects', () => {

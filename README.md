@@ -4,16 +4,17 @@
 
 A local-first AI prompt coaching tool that reviews your past prompts, identifies weak patterns, teaches better model choice, detects privacy risks, and turns recurring mistakes into reusable templates.
 
-V1 is a completed local-first demo pipeline for privacy-safe prompt habit coaching.
+V1 is complete through `14-local-dashboard-ui`.
 
 ## At a glance
 
 | Area | Summary |
 |---|---|
 | **Problem** | AI users often blame the model when the real issue is vague prompts, missing context, weak constraints, unsafe data sharing, or poor model choice. |
-| **Approach** | Analyze prompt logs locally, score prompt habits, flag privacy risks, recommend model capability classes, and suggest reusable templates. |
-| **Result** | A completed local-first V1 demo pipeline that generates the **"20 Prompts Later: Your AI Habits Exposed"** coaching report. |
+| **Approach** | Analyze prompt logs locally, score prompt habits, flag privacy risks, recommend model capability classes, suggest reusable templates, and expose the results through a report plus a read-only local dashboard UI. |
+| **Result** | A completed local-first V1 implementation that generates the **"20 Prompts Later: Your AI Habits Exposed"** coaching report and includes a loopback-only local dashboard UI. |
 | **Demo command** | `npm run demo` |
+| **Dashboard command** | `npm run dashboard:ui -- ./local.db` |
 | **Privacy posture** | No cloud sync, no telemetry, no provider API calls, no external AI judge, no full model-answer storage. |
 | **Kiro evidence** | `.kiro/steering/` and `.kiro/specs/` show the spec-driven build process. |
 
@@ -27,11 +28,11 @@ Prompt logs can also contain private code, credentials, work context, personal i
 
 ### Approach
 
-cookedPrompts analyzes prompt logs locally after the fact. It imports JSONL/CSV prompt logs, strips full-answer fields, scores prompt quality, flags safety/privacy risks, recommends model capability classes, suggests rewrite templates, and renders a coaching report.
+cookedPrompts analyzes prompt logs locally after the fact. It imports JSONL/CSV prompt logs, strips full-answer fields, scores prompt quality, flags safety/privacy risks, recommends model capability classes, suggests rewrite templates, renders a coaching report, and exposes the scored results through a read-only local dashboard UI.
 
 ### Result
 
-V1 is a completed local-first demo pipeline. A judge can run:
+V1 is complete through `14-local-dashboard-ui`. A judge can run:
 
 ```bash
 npm run demo
@@ -41,7 +42,7 @@ and see the full **"20 Prompts Later: Your AI Habits Exposed"** report generated
 
 ## What cookedPrompts does
 
-cookedPrompts turns prompt logs into a local coaching report.
+cookedPrompts turns prompt logs into local coaching artifacts.
 
 It helps users answer:
 
@@ -63,7 +64,9 @@ V1 includes:
 - rewrite/template coaching
 - integration demo flow
 - Markdown report rendering
+- export bundle generation
 - demo runner CLI
+- read-only local dashboard UI
 
 ## Why V1 is local-first
 
@@ -72,42 +75,56 @@ Prompt logs can contain sensitive personal, technical, or company information, s
 Before adding hosted features or integrations, cookedPrompts first proves the core coaching loop locally:
 
 ```text
-import prompts -> analyze habits -> flag risks -> recommend model fit -> suggest templates -> render report
+import prompts -> analyze habits -> flag risks -> recommend model fit -> suggest templates -> render report -> browse locally
 ```
 
-This keeps the hackathon demo focused, reviewable, and privacy-safe while preserving a clear path for future versions.
-
-## V1 Product Walkthrough
-
-The V1 pipeline processes prompt logs through these stages:
-
-1. **Import prompts locally** — Parse JSONL or CSV prompt logs into a provider-neutral format.
-2. **Validate and normalize** — Check required fields, reject malformed rows, normalize timestamps and tags.
-3. **Strip full-answer fields** — Remove banned model-answer fields (V1 never stores full responses).
-4. **Score prompt habits** — Rate each prompt 0–5 across clarity, context, constraints, output format, capability fit, efficiency, and safety/privacy.
-5. **Run safety/redaction checks** — Detect API keys, secrets, PII, prompt injection risks, and other privacy concerns.
-6. **Recommend model fit locally** — Suggest vendor-neutral capability classes (cheap_fast, coding, deep_reasoning, etc.) based on prompt characteristics.
-7. **Suggest rewrite templates** — Map issue labels to coaching guidance and reusable template structures.
-8. **Render coaching report** — Produce a deterministic markdown report with 8 sections: batch overview, prompt health, issue patterns, safety/privacy, model recommendations, rewrite coaching, next actions, and limitations.
-9. **Run through CLI** — `npm run demo` executes the full pipeline and prints the report.
+This keeps the hackathon submission reviewable, runnable, and privacy-safe while preserving a clear path for future versions.
 
 ## Quick Start
 
 ```bash
-# Clone and install
 git clone https://github.com/jaingee/cookedPromptedHackathon.git
 cd cookedPromptedHackathon
 npm install
 
-# Run the demo (uses built-in synthetic dataset)
+# Run the built-in synthetic demo
 npm run demo
 
-# Save the report to a file
+# Save the report to ./cooked-report.md
 npm run demo:save
 
-# See all options
+# Write the export bundle directory
+npm run demo -- --export ./my-export-bundle
+
+# See CLI help
 npm run demo -- --help
+
+# See dashboard help
+npm run dashboard:ui -- --help
 ```
+
+## Local dashboard UI
+
+V1 includes a read-only local dashboard UI for browsing prompt-habit coaching output more visually.
+
+Launch commands:
+
+```bash
+npm run dashboard:ui -- --help
+npm run dashboard:ui -- ./local.db
+```
+
+Dashboard guarantees:
+
+- loopback-only browser surface on `127.0.0.1`
+- overview and prompt list do not render prompt text
+- prompt detail may show masked local prompt text
+- no provider calls
+- no telemetry
+- no cloud sync
+- no write operations in the UI
+
+The dashboard command expects an existing local SQLite database produced by the local workflow.
 
 ## How to judge this repo quickly
 
@@ -119,24 +136,38 @@ npm install
 npm run demo
 ```
 
-3. Save the report if desired:
+3. Save or export the output if desired:
 
 ```bash
 npm run demo:save
+npm run demo -- --export ./tmp-export-bundle
 ```
 
-4. Inspect the implementation path:
+4. Inspect the local dashboard entrypoint and help:
+
+```bash
+npm run dashboard:ui -- --help
+```
+
+5. Inspect the implementation path:
    - `src/cli/demo-runner.ts`
+   - `src/cli/dashboard-ui.ts`
    - `src/integration-demo/`
    - `src/demo-report/`
+   - `src/dashboard/`
+   - `src/dashboard-ui/`
    - `src/safety/`
    - `src/model-recommendation/`
    - `src/rewrite-template/`
-5. Inspect the Kiro spec evidence:
+   - `src/exports/`
+6. Inspect the Kiro spec evidence:
    - `.kiro/steering/`
    - `.kiro/specs/09-integration-demo-flow/`
    - `.kiro/specs/10-demo-report-renderer/`
    - `.kiro/specs/11-demo-runner-cli/`
+   - `.kiro/specs/12-detailed-coaching-report/`
+   - `.kiro/specs/13-exports/`
+   - `.kiro/specs/14-local-dashboard-ui/`
 
 ## Report preview
 
@@ -144,7 +175,7 @@ Want to see the output before running the CLI?
 
 See [`docs/sample-report.md`](docs/sample-report.md) for a committed sample report generated from the built-in synthetic demo dataset.
 
-The preview intentionally avoids raw prompt text. It includes a short reading guide that explains how aggregate issue patterns, safety warnings, model recommendations, and rewrite/template suggestions translate into coaching actions.
+The preview is generated from the built-in synthetic dataset. It includes a short reading guide that explains how issue patterns, safety warnings, model recommendations, and rewrite/template suggestions translate into coaching actions.
 
 To regenerate it locally:
 
@@ -168,12 +199,17 @@ Remove-Item .\cooked-report.md -Force
 |---|---|
 | **Working local demo** | Run `npm run demo` |
 | **Saved report output** | Run `npm run demo:save` |
+| **Export bundle output** | Run `npm run demo -- --export ./tmp-export-bundle` |
 | **CLI implementation** | `src/cli/demo-runner.ts` |
+| **Dashboard UI launcher** | `src/cli/dashboard-ui.ts` |
 | **End-to-end pipeline** | `src/integration-demo/` |
 | **Report renderer** | `src/demo-report/` |
+| **Dashboard data service** | `src/dashboard/` |
+| **Loopback dashboard UI** | `src/dashboard-ui/` |
 | **Safety scanner** | `src/safety/` |
 | **Model recommendation** | `src/model-recommendation/` |
 | **Rewrite/template coaching** | `src/rewrite-template/` |
+| **Export bundle writer** | `src/exports/` |
 | **Spec-driven build evidence** | `.kiro/specs/` |
 | **Steering and guardrails** | `.kiro/steering/` |
 | **Privacy boundary** | `docs/security-and-privacy.md` |
@@ -203,6 +239,15 @@ npm run demo -- --out ./reports/analysis.md
 # Combine file input and custom output
 npm run demo -- --file ./prompts.jsonl --out ./report.md
 
+# Write coaching-report.md, memory.md, and workflow.md to a bundle directory
+npm run demo -- --export ./prompt-export
+
+# Launch the local dashboard UI on loopback only
+npm run dashboard:ui -- ./local.db
+
+# Show dashboard help
+npm run dashboard:ui -- --help
+
 # Build CLI (used internally by demo scripts)
 npm run build:cli
 ```
@@ -214,6 +259,7 @@ npm run build:cli
 | `--file <path>` | Run pipeline against a JSONL or CSV file |
 | `--out <path>` | Save markdown report to specified file |
 | `--save` | Save markdown report to `./cooked-report.md` |
+| `--export <dir>` | Write an export bundle directory with `coaching-report.md`, `memory.md`, and `workflow.md` |
 | `--include-prompt-text` | Accepted (no effect in V1) |
 | `--help`, `-h` | Show usage and exit |
 
@@ -231,20 +277,25 @@ npm run demo -- --file ./my-exported-prompts.jsonl
 
 # 4. Save the report for reference
 npm run demo -- --file ./my-exported-prompts.jsonl --out ./my-report.md
+
+# 5. Export the reusable coaching bundle
+npm run demo -- --file ./my-exported-prompts.jsonl --export ./my-export-bundle
 ```
 
 ## Privacy Guarantees
 
 cookedPrompts V1 is strictly local-first:
 
-- **No network calls** — the CLI never contacts external services
-- **No telemetry** — no usage tracking, no analytics
-- **No provider API calls** — no OpenAI/Anthropic/Google calls
-- **No external AI judge** — all scoring is local and rule-based
-- **No cloud sync** — data stays on your machine
-- **No full model-answer retention** — V1 strips and rejects response fields
-- **No raw prompt text in report output** — the rendered report uses aggregate data only
-- **No login or auth** — runs without accounts
+- **No network calls for analysis** - the scoring, safety scan, recommendation flow, and report generation stay local
+- **Loopback-only dashboard UI** - the browser surface binds to `127.0.0.1` only
+- **No telemetry** - no usage tracking, no analytics
+- **No provider API calls** - no OpenAI, Anthropic, or Google calls
+- **No external AI judge** - all scoring is local and rule-based
+- **No cloud sync** - data stays on your machine
+- **No full model-answer retention** - V1 strips and rejects response fields
+- **No raw prompt log dumps** - reports and dashboard views stay coaching-oriented instead of exposing full log exports
+- **Prompt excerpts stay local and bounded** - reports may show synthetic or redacted local prompt excerpts, and the dashboard detail page may show masked prompt text for local review
+- **No login or auth** - runs without accounts
 
 The report output never contains: `prompt_text`, `assistant_message`, `response`, `completion`, `model_answer`, `output_text`, `generated_text`, or `template_body`.
 
@@ -277,7 +328,7 @@ This keeps the submission reviewable while preserving a safer public boundary.
 |--------|--------|
 | Local importer (JSONL/CSV) | Complete |
 | SQLite data layer | Complete |
-| Scoring engine (7 dimensions) | Complete |
+| Scoring engine | Complete |
 | Score persistence | Complete |
 | Dashboard data service | Complete |
 | Safety/redaction scanner | Complete |
@@ -286,8 +337,10 @@ This keeps the submission reviewable while preserving a safer public boundary.
 | Integration demo flow | Complete |
 | Demo report renderer | Complete |
 | Demo runner CLI | Complete |
+| Export bundles | Complete |
+| Local dashboard UI | Complete |
 
-42 test files. 841 tests passing.
+Test count verified in this public deploy pass: 51 test files. 927 tests passing.
 
 ## Non-goals / Deferred Features
 
@@ -295,29 +348,33 @@ V1 deliberately does not include:
 
 - Browser extension or API proxy
 - VS Code / Kiro extension
+- Hosted web app or cloud dashboard
 - Cloud sync or Supabase integration
 - Login, auth, or user accounts
 - Billing or payments
 - PDF/DOCX export
-- Interactive TUI or web dashboard
 - Real-time prompt blocking
 - LLM-generated narrative or AI-assisted scoring
 - Telemetry or usage analytics
-- Team/organization features
+- Team or organization features
 
-These may come in V2-V5. The public roadmap boundary is summarized here and in the visible `.kiro/specs/`, `.kiro/steering/`, and `docs/` artifacts.
+These may come in future versions. The public roadmap boundary is summarized here and in the visible `.kiro/specs/`, `.kiro/steering/`, and `docs/` artifacts.
 
 ## Developer Verification
 
 ```bash
-npm run typecheck       # TypeScript check (no emit)
-npm run build:cli       # Compile CLI to dist/
-npm test                # Run all tests (vitest)
-npm run demo            # Run demo pipeline
-npm run demo -- --help  # Show CLI help
-npm run demo:save       # Save report (delete generated file after)
-git diff --check        # Check for whitespace issues
+npm run typecheck
+npm run build:cli
+npm test
+npm run demo
+npm run demo -- --help
+npm run demo:save
+npm run demo -- --export ./tmp-export-bundle
+npm run dashboard:ui -- --help
+git diff --check
 ```
+
+Delete generated report and export artifacts after verification if they are not intentionally kept.
 
 ## Kiro usage and spec-driven build evidence
 
@@ -334,6 +391,9 @@ Kiro artifacts visible in this repo:
 | Integration demo flow | `.kiro/specs/09-integration-demo-flow/` |
 | Demo report renderer | `.kiro/specs/10-demo-report-renderer/` |
 | Demo runner CLI | `.kiro/specs/11-demo-runner-cli/` |
+| Detailed coaching report | `.kiro/specs/12-detailed-coaching-report/` |
+| Export bundles | `.kiro/specs/13-exports/` |
+| Local dashboard UI | `.kiro/specs/14-local-dashboard-ui/` |
 | Reusable Kiro workflow skill | `.kiro/skills/rtk-token-efficient-cli/` |
 
 Kiro was used for:
@@ -353,14 +413,14 @@ I did not rely heavily on Kiro hooks or advanced automation features in this ver
 The shipped V1 follows the same pipeline described in the specs:
 
 ```text
-import -> validate -> strip full answers -> normalize -> store -> score -> scan safety -> recommend model class -> suggest templates -> summarize -> render report -> run CLI
+import -> validate -> strip full answers -> normalize -> store -> score -> scan safety -> recommend model class -> suggest templates -> summarize -> render report -> export -> browse locally
 ```
 
 ## Kiro usage note
 
 This V1 was built with Kiro using **roughly 2,000 credits** during an exploratory, highly verified build process.
 
-Most implementation passes used **Auto mode**, with **Opus 4.8** used for heavier reasoning/planning passes and occasional **GLM 5** / **MiniMax 2.5** use.
+Most implementation passes used **Auto mode**, with **Opus 4.8** used for heavier reasoning and planning passes and occasional **GLM 5** / **MiniMax 2.5** use.
 
 The credit usage could likely be optimized further. A more streamlined repeat build could probably fit closer to **around 1,000 credits** by:
 
@@ -382,11 +442,11 @@ A short demo video can show the project in this order:
 4. Point out the report sections:
    - prompt health
    - issue patterns
-   - safety/privacy
+   - safety and privacy
    - model recommendations
-   - rewrite/template coaching
+   - rewrite and template coaching
    - next actions
-5. Show `.kiro/specs/11-demo-runner-cli/` and `.kiro/specs/09-integration-demo-flow/` to demonstrate spec-to-code alignment.
+5. Show `npm run dashboard:ui -- ./local.db` or `npm run dashboard:ui -- --help`, then point to `src/dashboard-ui/` and `.kiro/specs/14-local-dashboard-ui/`.
 6. End with the roadmap: V1 is local-first; future versions can add hosted features only after privacy boundaries are proven.
 
 ## Project Docs / Where to Read Next
@@ -399,14 +459,15 @@ A short demo video can show the project in this order:
 | `docs/storage.md` | SQLite layer docs |
 | `docs/scoring.md` | Scoring engine docs |
 | `docs/scoring-persistence.md` | Score persistence docs |
-| `docs/dashboard.md` | Dashboard service docs |
+| `docs/dashboard.md` | Dashboard data service and UI documentation |
 | `docs/safety.md` | Safety scanner docs |
 | `docs/model-recommendation.md` | Model recommendation docs |
-| `docs/rewrite-template.md` | Rewrite/template docs |
+| `docs/rewrite-template.md` | Rewrite and template docs |
 | `docs/integration-demo-flow.md` | Integration pipeline docs |
 | `docs/demo-report-renderer.md` | Report renderer docs |
 | `docs/demo-runner-cli.md` | CLI documentation |
-| `docs/security-and-privacy.md` | Public privacy/security boundary |
+| `docs/sample-report.md` | Public sample output for judges |
+| `docs/security-and-privacy.md` | Public privacy and security boundary |
 | `docs/demo-data.md` | Synthetic demo dataset notes |
 | `.kiro/steering/` | Persistent project guidance |
 | `.kiro/specs/` | Feature specs: requirements -> design -> tasks |

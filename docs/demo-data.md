@@ -24,4 +24,4 @@ The placeholders are not real credentials, not service tokens, and not internal 
 
 ## Privacy Boundary
 
-The demo dataset contains no real user prompts, no real model answers, no real credentials, and no private logs. V1 reports generated from this data do not include raw `prompt_text`.
+The demo dataset contains no real user prompts, no real model answers, no real credentials, and no private logs. V1 reports generated from this data may include synthetic prompt excerpts for coaching, but they do not include real user data, raw matched secret values, or banned full-answer fields.

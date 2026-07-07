@@ -3,7 +3,7 @@
  *
  * Thin terminal wrapper around runIntegrationDemo + renderDemoReport.
  * Local-only. No network. No telemetry. No provider calls.
- * No prompt_text output. No banned fields. No secrets. No stack traces.
+ * No raw prompt_text output. No banned fields. No secrets. No stack traces.
  */
 
 import { fileURLToPath } from 'node:url';
@@ -12,14 +12,19 @@ import * as fs from 'node:fs';
 
 import { runIntegrationDemo } from '../integration-demo/index.js';
 import { renderDemoReport } from '../demo-report/index.js';
+import {
+  buildExportBundle,
+  writeExportBundleToDirectory,
+} from '../exports/index.js';
 import type { UnifiedDemoOutput } from '../integration-demo/types.js';
 import type { DemoReport } from '../demo-report/types.js';
-import type { DemoInput } from '../integration-demo/types.js';
+import type { DemoInput, PipelineOptions } from '../integration-demo/types.js';
+import type { ExportBundle } from '../exports/index.js';
 
 // --- Types ---
 
 export type CliMode = 'demo' | 'file';
-export type OutputMode = 'stdout' | 'file';
+export type OutputMode = 'stdout' | 'file' | 'export';
 export type SourceType = 'jsonl' | 'csv';
 
 export interface CliOptions {
@@ -28,6 +33,7 @@ export interface CliOptions {
   source_type?: SourceType;
   output_mode: OutputMode;
   output_path?: string;
+  export_path?: string;
   include_prompt_text: boolean;
   help: boolean;
 }
@@ -95,7 +101,7 @@ export function inferSourceType(filePath: string): SourceType {
 // --- Argument parsing ---
 
 /** Known flags that accept a value (next token). */
-const VALUE_FLAGS = new Set(['--file', '--out']);
+const VALUE_FLAGS = new Set(['--file', '--out', '--export']);
 
 /** Known boolean flags. */
 const BOOLEAN_FLAGS = new Set(['--save', '--include-prompt-text', '--help', '-h']);
@@ -146,13 +152,33 @@ export function parseCliArgs(argv: string[]): CliOptions {
       if (value === undefined || value.startsWith('-')) {
         throw new CliError('invalid_args');
       }
+      if (options.output_mode === 'export') {
+        throw new CliError('invalid_args');
+      }
       options.output_mode = 'file';
       options.output_path = value;
       i += 2;
       continue;
     }
 
+    if (token === '--export') {
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith('-')) {
+        throw new CliError('invalid_args');
+      }
+      if (options.output_mode === 'file') {
+        throw new CliError('invalid_args');
+      }
+      options.output_mode = 'export';
+      options.export_path = value;
+      i += 2;
+      continue;
+    }
+
     if (token === '--save') {
+      if (options.output_mode === 'export') {
+        throw new CliError('invalid_args');
+      }
       options.output_mode = 'file';
       // --out takes precedence if both present; set default only if no --out yet
       if (!options.output_path) {
@@ -215,8 +241,12 @@ export function formatUsage(): string {
     '  --file <path>          Run pipeline against a JSONL or CSV file',
     '  --out <path>           Save markdown report to specified file',
     '  --save                 Save markdown report to ./cooked-report.md',
-    '  --include-prompt-text  Accepted (no effect in V1)',
+    '  --export <dir>         Write export bundle directory',
+    '  --include-prompt-text  Accepted for compatibility',
     '  --help, -h             Show this help and exit',
+    '',
+    'Notes:',
+    '  --export cannot be combined with --save or --out',
     '',
   ].join('\n');
 }
@@ -230,6 +260,8 @@ export interface CliWriters {
   writeFile: (filePath: string, content: string, encoding: 'utf8') => void;
   exists: (filePath: string) => boolean;
   isDirectoryWritable: (dirPath: string) => boolean;
+  isDirectory: (targetPath: string) => boolean;
+  mkdir: (dirPath: string) => void;
   now?: () => Date;
   cwd?: () => string;
 }
@@ -304,6 +336,10 @@ export function formatRelativePathForConfirmation(
   filePath: string,
   cwd: string,
 ): string {
+  if (!path.isAbsolute(filePath)) {
+    const normalized = path.normalize(filePath).replace(/^(\.[\\/])+/, '');
+    return normalized || filePath;
+  }
   const rel = path.relative(cwd, filePath);
   // If relative path starts with '..' many levels or is absolute, use as-is
   // but prefer relative for privacy
@@ -350,11 +386,40 @@ export function writeOutput(
   return relativePath;
 }
 
+/**
+ * Write an export bundle directory and return the relative directory path.
+ * Does not expose raw exception text or filesystem details.
+ */
+export function writeExportOutput(
+  bundle: ExportBundle,
+  options: CliOptions,
+  writers: CliWriters,
+): string {
+  const exportPath = options.export_path;
+  if (!exportPath) {
+    throw new CliError('invalid_args');
+  }
+
+  const cwdFn = writers.cwd ?? (() => process.cwd());
+  const result = writeExportBundleToDirectory(bundle, exportPath, {
+    exists: writers.exists,
+    isDirectory: writers.isDirectory,
+    mkdir: writers.mkdir,
+    writeFile: writers.writeFile,
+    now: writers.now,
+  });
+
+  const relativePath = formatRelativePathForConfirmation(result.output_dir, cwdFn());
+  writers.stderr(`Export bundle written to ${relativePath}\n`);
+  return relativePath;
+}
+
 // --- CLI Dependencies ---
 
 export interface CliDependencies {
-  runPipeline: (input: DemoInput) => Promise<UnifiedDemoOutput>;
+  runPipeline: (input: DemoInput, options?: PipelineOptions) => Promise<UnifiedDemoOutput>;
   renderReport: (output: UnifiedDemoOutput, options: { include_markdown: true }) => DemoReport;
+  buildBundle: (output: UnifiedDemoOutput) => ExportBundle;
   writers: CliWriters;
 }
 
@@ -374,6 +439,14 @@ export function createDefaultWriters(): CliWriters {
         return false;
       }
     },
+    isDirectory: (targetPath: string) => {
+      try {
+        return fs.statSync(targetPath).isDirectory();
+      } catch {
+        return false;
+      }
+    },
+    mkdir: (dirPath: string) => { fs.mkdirSync(dirPath, { recursive: true }); },
     now: () => new Date(),
     cwd: () => process.cwd(),
   };
@@ -384,6 +457,7 @@ export function createDefaultWriters(): CliWriters {
 export async function runCli(argv: string[], deps?: Partial<CliDependencies>): Promise<number> {
   const pipeline = deps?.runPipeline ?? runIntegrationDemo;
   const renderer = deps?.renderReport ?? renderDemoReport;
+  const bundleBuilder = deps?.buildBundle ?? ((output: UnifiedDemoOutput) => buildExportBundle(output));
   const writers = deps?.writers ?? createDefaultWriters();
 
   // Stage 1: Parse args and build input
@@ -408,10 +482,28 @@ export async function runCli(argv: string[], deps?: Partial<CliDependencies>): P
   // Stage 2: Run pipeline
   let output: UnifiedDemoOutput;
   try {
-    output = await pipeline(input);
+    output = await pipeline(input, { include_prompt_text: true });
   } catch {
     writers.stderr('Pipeline execution failed.\n');
     return 1;
+  }
+
+  if (options.output_mode === 'export') {
+    let bundle: ExportBundle;
+    try {
+      bundle = bundleBuilder(output);
+    } catch {
+      writers.stderr('Report generation failed.\n');
+      return 1;
+    }
+
+    try {
+      writeExportOutput(bundle, options, writers);
+      return 0;
+    } catch {
+      writers.stderr('File write failed.\n');
+      return 1;
+    }
   }
 
   // Stage 3: Render report
