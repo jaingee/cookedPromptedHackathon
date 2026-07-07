@@ -6,6 +6,10 @@ A local-first AI prompt coaching tool that reviews your past prompts, identifies
 
 V1 is complete through `14-local-dashboard-ui`.
 
+The "roast" part is intentionally lighthearted. The point is not to shame people for writing bad prompts. The point is to make prompting feel more like experimentation: try something, see what happened, laugh at the pattern, learn from it, and improve the next attempt.
+
+This is a passion project about helping people enjoy the process of getting better at AI while still taking privacy, quality, and good engineering habits seriously.
+
 ## At a glance
 
 | Area | Summary |
@@ -67,6 +71,14 @@ V1 includes:
 - export bundle generation
 - demo runner CLI
 - read-only local dashboard UI
+
+## Prompt efficiency is resource efficiency
+
+Better prompts can mean fewer retries, fewer wasted tokens, less unnecessary reasoning, a more suitable model class, lower cost, and less wasted compute.
+
+That does not mean V1 can directly calculate exact carbon, energy, or water savings. It cannot. What V1 does is make inefficient prompt habits visible so users can see where they are overspending effort, tokens, and model capability.
+
+Depending on provider, infrastructure, and workload, better prompt habits can reduce wasted compute and create potential energy and water savings. This V1 lays the groundwork for future cost-aware and sustainability-aware coaching without overclaiming what the current build measures.
 
 ## Why V1 is local-first
 
@@ -341,6 +353,38 @@ This keeps the submission reviewable while preserving a safer public boundary.
 | Local dashboard UI | Complete |
 
 Test count verified in this public deploy pass: 51 test files. 927 tests passing.
+
+## Future direction
+
+V1 is complete through `14-local-dashboard-ui`, but the longer arc is bigger than a single local demo.
+
+| Version | Direction |
+| ------- | --------- |
+| V1 | Local demo pipeline, coaching report, export bundles, and read-only local dashboard UI |
+| V2 | Local app experience with importer preview, better dashboard filtering and search, and stronger visual habit tracking |
+| V3 | Optional API-wrapper mode for model providers, with local redaction, routing rules, cost awareness, and model-fit coaching before prompts are sent |
+| V4 | Project-specific skill and template recommendations based on the user's repeated prompting style, coding workflow, and documentation habits |
+| V5 | Vibe-coding workflow support: review prompt history, detect repeated planning and debugging mistakes, suggest better implementation prompts, and generate reusable project playbooks |
+| V6 | Cost and compute-efficiency coaching: estimate wasted tokens, model overkill, retry loops, and possible savings from better prompt habits |
+| V7 | IDE and coding-assistant integrations for local prompt review, task planning, model routing hints, and safer handoffs between tools |
+| V8 | Optional sync or hosted features with strong consent, local redaction before upload, user-controlled storage, and clear privacy boundaries |
+| V9 | Team or education use cases with consent, anti-surveillance boundaries, and coaching focused on learning rather than monitoring |
+
+### Optional API-wrapper mode
+
+A future direction is an optional API-wrapper mode that sits in front of provider calls and gives users one last local checkpoint: redact sensitive data, route to a more suitable model class, and warn about obvious overkill before the prompt leaves the machine.
+
+### Skill and template recommendations
+
+Another future direction is making the coaching more personal to the work itself. Instead of only saying "this prompt was weak," cookedPrompts could recommend better reusable skills, templates, or project-specific prompt structures based on the patterns a user repeats.
+
+### Vibe-coding and builder workflow coaching
+
+For people building software with AI all day, the next layer is workflow coaching. That means helping users review planning loops, debugging loops, handoff quality, and repeated implementation mistakes so prompting becomes part of a better builder practice, not just a better one-off query.
+
+### Cost, token, energy, and water awareness
+
+Longer term, cookedPrompts could support future sustainability-aware coaching by estimating token waste, retry churn, and model overkill. Depending on provider, infrastructure, and workload, better prompt habits can reduce wasted compute and lead to potential energy and water savings, even if V1 does not measure those effects directly.
 
 ## Non-goals / Deferred Features
 
